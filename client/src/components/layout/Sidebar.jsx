@@ -1,4 +1,5 @@
 
+import { NavLink } from 'react-router'
 import { navigationByRole } from '../../config/navigation.js'
 
 export default function Sidebar({ role, onNavigate }) {
@@ -15,9 +16,9 @@ export default function Sidebar({ role, onNavigate }) {
 
             <nav aria-label="Main navigation" className="flex-1 space-y-1 p-3">
                 {items.map((item) => (
-                    <a
+                    <NavLink
                         key={item.href}
-                        href={item.href}
+                        to={item.href}
                         onClick={onNavigate}
                         className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[var(--color-muted)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
                     >
@@ -25,7 +26,7 @@ export default function Sidebar({ role, onNavigate }) {
                             {item.icon}
                         </span>
                         {item.label}
-                    </a>
+                    </NavLink>
                 ))}
             </nav>
 

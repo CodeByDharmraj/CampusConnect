@@ -1,10 +1,12 @@
 
-import AppLayout from '../components/layout/AppLayout.jsx'
+// import AppLayout from '../components/layout/AppLayout.jsx'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import Button from '../components/ui/Button.jsx'
 import StatCard from '../components/ui/StatCard.jsx'
 import AnnouncementCard from '../components/ui/AnnouncementCard.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
+
+import { Link } from 'react-router'
 
 const demoAnnouncements = [
     {
@@ -29,15 +31,18 @@ const demoAnnouncements = [
 
 export default function DashboardPage() {
     return (
-        <AppLayout>
+        <>
             <PageHeader
                 title="Dashboard"
                 description="Your academic information and campus updates, together."
                 action={
-                    <Button onClick={() => window.alert('Announcements page coming in Phase 7')}>
+                    <Link
+                        to="/announcements"
+                        className="inline-flex items-center justify-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-800 dark:bg-blue-500 dark:hover:bg-blue-400"
+                    >
                         View announcements
-                    </Button>
-                }
+                    </Link>
+                  }
             />
 
             <section
@@ -87,6 +92,6 @@ export default function DashboardPage() {
                     />
                 )}
             </section>
-        </AppLayout>
+        </>
     )
 }

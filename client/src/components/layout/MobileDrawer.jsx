@@ -1,4 +1,5 @@
 
+import { NavLink } from 'react-router'
 import { navigationByRole } from '../../config/navigation.js'
 
 export default function MobileDrawer({ role, open, onClose }) {
@@ -42,9 +43,9 @@ export default function MobileDrawer({ role, open, onClose }) {
 
                 <nav aria-label="Mobile main navigation" className="flex-1 space-y-1 p-3">
                     {items.map((item) => (
-                        <a
+                        <NavLink
                             key={item.href}
-                            href={item.href}
+                            to={item.href}
                             onClick={onClose}
                             className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium hover:bg-[var(--color-elevated)]"
                         >
@@ -52,7 +53,7 @@ export default function MobileDrawer({ role, open, onClose }) {
                                 {item.icon}
                             </span>
                             {item.label}
-                        </a>
+                        </NavLink>
                     ))}
                 </nav>
             </aside>

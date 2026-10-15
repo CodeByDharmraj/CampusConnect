@@ -4,6 +4,8 @@ import Navbar from './Navbar.jsx'
 import Sidebar from './Sidebar.jsx'
 import MobileDrawer from './MobileDrawer.jsx'
 
+import { Outlet } from 'react-router'
+
 export default function AppLayout({ children }) {
     const [role, setRole] = useState('student')
     const [drawerOpen, setDrawerOpen] = useState(false)
@@ -47,7 +49,7 @@ export default function AppLayout({ children }) {
 
                     <main className="w-full flex-1 px-4 py-8 sm:px-6 lg:px-8">
                         <div className="mx-auto w-full max-w-7xl">
-                            {children}
+                            <Outlet />
                         </div>
                     </main>
                 </div>
