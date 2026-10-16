@@ -13,10 +13,13 @@ import AttendancePage from './pages/AttendancePage.jsx'
 import AssignmentsPage from './pages/AssignmentsPage.jsx'
 import NotFoundPage from './pages/NotFoundPage.jsx'
 
+import LoginPage from './pages/LoginPage.jsx'
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path='/login' element={ <LoginPage/>} />
         <Route element={<AppLayout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
