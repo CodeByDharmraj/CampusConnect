@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react'
 import { announcementService } from '../services/announcementService.js'
+import { systemService } from '../services/systemService.js'
 
 export default function ApiTestPage() {
     const [status, setStatus] = useState('Loading...')
@@ -11,9 +12,9 @@ export default function ApiTestPage() {
 
         async function checkApi() {
             try {
-                const data = await announcementService.getAll(
+                const data = await systemService.getHealth(
                     controller.signal,
-                )
+                  )
 
                 if (controller.signal.aborted) return
 
