@@ -15,12 +15,15 @@ import NotFoundPage from './pages/NotFoundPage.jsx'
 
 import LoginPage from './pages/LoginPage.jsx'
 
+import ApiTestPage from './pages/ApiTestPage.jsx'
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path='/login' element={ <LoginPage/>} />
         <Route element={<AppLayout />}>
+          <Route path="/api-test" element={<ApiTestPage />} />
           <Route path="/" element={<DashboardPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/announcements" element={<AnnouncementsPage />} />
