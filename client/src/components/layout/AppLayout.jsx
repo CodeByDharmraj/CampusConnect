@@ -1,19 +1,16 @@
 
 import { useEffect, useState } from 'react'
+import { Outlet } from 'react-router'
+
 import Navbar from './Navbar.jsx'
 import Sidebar from './Sidebar.jsx'
 import MobileDrawer from './MobileDrawer.jsx'
+import { useTheme } from '../../context/ThemeContext.jsx'
 
-import { Outlet } from 'react-router'
-
-export default function AppLayout({ children }) {
+export default function AppLayout() {
     const [role, setRole] = useState('student')
     const [drawerOpen, setDrawerOpen] = useState(false)
-    const [theme, setTheme] = useState('light')
-
-    useEffect(() => {
-        document.documentElement.classList.toggle('dark', theme === 'dark')
-    }, [theme])
+    const { theme, toggleTheme } = useTheme()
 
     useEffect(() => {
         function closeOnEscape(event) {
@@ -23,12 +20,11 @@ export default function AppLayout({ children }) {
         }
 
         window.addEventListener('keydown', closeOnEscape)
-        return () => window.removeEventListener('keydown', closeOnEscape)
-    }, [])
 
-    function toggleTheme() {
-        setTheme((current) => current === 'light' ? 'dark' : 'light')
-    }
+        return () => {
+            window.removeEventListener('keydown', closeOnEscape)
+        }
+    }, [])
 
     return (
         <div className="min-h-screen bg-[var(--color-page)] text-[var(--color-text)]">
