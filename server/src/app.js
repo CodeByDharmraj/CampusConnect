@@ -10,6 +10,8 @@ import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.routes.js";
 import accessTestRouter from "./routes/accessTest.routes.js";
 
+import courseRouter from "./modules/courses/course.routes.js";
+
 
 const app = express();
 
@@ -34,16 +36,15 @@ app.get("/", (req, res) => {
   });
 });
 
-app.use("/api/health", healthRouter);
-app.use("/api/auth", authRouter);
 
 app.use("/api/access-test", accessTestRouter);
 
+app.use("/api/health", healthRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/courses", courseRouter);
 
-// Register future API routers above the 404 handler.
+// Keep these last.
 app.use(notFound);
-
-// Error-handling middleware must be last.
 app.use(errorHandler);
 
 export default app;

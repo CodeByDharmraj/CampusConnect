@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "check:models": "node src/scripts/checkModels.js",
+    "seed:test-users": "node src/scripts/seedCourseTestUsers.js",
     "bootstrap-admin": "node src/scripts/createInitialAdmin.js"
   },
   "keywords": [],
