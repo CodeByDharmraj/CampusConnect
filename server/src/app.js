@@ -10,6 +10,7 @@ import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.routes.js";
 import accessTestRouter from "./routes/accessTest.routes.js";
 
+
 const app = express();
 
 app.disable("x-powered-by");
@@ -24,7 +25,7 @@ app.use(
 );
 
 app.use(express.json({ limit: "100kb" }));
-app.use("/api/auth", authRouter);
+
 
 app.get("/", (req, res) => {
   res.status(200).json({
@@ -34,7 +35,10 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/health", healthRouter);
+app.use("/api/auth", authRouter);
+
 app.use("/api/access-test", accessTestRouter);
+
 
 // Register future API routers above the 404 handler.
 app.use(notFound);
