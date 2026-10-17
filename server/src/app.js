@@ -6,6 +6,9 @@ import healthRouter from "./routes/health.routes.js";
 import { notFound } from "./middleware/notFound.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
+import cookieParser from "cookie-parser";
+import authRouter from "./routes/auth.routes.js";
+
 const app = express();
 
 app.disable("x-powered-by");
@@ -20,6 +23,7 @@ app.use(
 );
 
 app.use(express.json({ limit: "100kb" }));
+app.use("/api/auth", authRouter);
 
 app.get("/", (req, res) => {
   res.status(200).json({

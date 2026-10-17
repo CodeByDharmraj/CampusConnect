@@ -1,6 +1,7 @@
 import "dotenv/config";
 import app from "./app.js";
 import { connectDatabase, disconnectDatabase } from "./config/database.js";
+import { getJwtSecret } from "./config/auth.js";
 
 const PORT = Number(process.env.PORT) || 5000;
 
@@ -8,8 +9,9 @@ let server;
 let shuttingDown = false;
 
 async function startServer() {
-  try {
-    await connectDatabase();
+    try {
+        getJwtSecret();
+        await connectDatabase();
 
     server = app.listen(PORT, () => {
       console.log(`CampusConnect API running on port ${PORT}`);
