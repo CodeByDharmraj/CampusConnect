@@ -17,6 +17,9 @@ app.get('/api/v1/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'CampusConnect API is running',
+    data: {
+      status: 'ok',
+    },
   })
 })
 

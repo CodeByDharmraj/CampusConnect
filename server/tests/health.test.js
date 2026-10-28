@@ -6,6 +6,8 @@ const express = require('express')
 const errorHandler = require('../src/middleware/errorHandler')
 const notFound = require('../src/middleware/notFound')
 const requestLogger = require('../src/middleware/requestLogger')
+const ApiError = require('../src/utils/ApiError')
+const asyncHandler = require('../src/utils/asyncHandler')
 
 async function withServer(t, runAssertions) {
   const server = app.listen(0, '127.0.0.1')
@@ -39,6 +41,9 @@ test('GET /api/v1/health returns a successful response', async (t) => {
     assert.deepEqual(await response.json(), {
       success: true,
       message: 'CampusConnect API is running',
+      data: {
+        status: 'ok',
+      },
     })
   })
 })
@@ -51,7 +56,7 @@ test('an unknown route returns a consistent 404 response', async (t) => {
     assert.deepEqual(await response.json(), {
       success: false,
       message: 'Route not found',
-      path: '/api/v1/does-not-exist',
+      code: 'RESOURCE_NOT_FOUND',
     })
   })
 })
@@ -91,5 +96,37 @@ test('unexpected errors return a generic 500 response', async (t) => {
   assert.deepEqual(await response.json(), {
     success: false,
     message: 'Internal server error',
+    code: 'INTERNAL_SERVER_ERROR',
   })
+})
+
+test('ApiError preserves a valid HTTP status and error code', () => {
+  const error = new ApiError(404, 'Course not found', 'COURSE_NOT_FOUND')
+
+  assert.equal(error.statusCode, 404)
+  assert.equal(error.message, 'Course not found')
+  assert.equal(error.code, 'COURSE_NOT_FOUND')
+  assert.equal(error.name, 'ApiError')
+})
+
+test('ApiError rejects an invalid HTTP status', () => {
+  assert.throws(
+    () => new ApiError(200, 'Invalid status', 'INVALID_STATUS'),
+    TypeError,
+  )
+})
+
+test('asyncHandler forwards rejected promises to next', async () => {
+  const expectedError = new Error('Test failure')
+  let receivedError
+
+  const handler = asyncHandler(async () => {
+    throw expectedError
+  })
+
+  await handler({}, {}, (error) => {
+    receivedError = error
+  })
+
+  assert.equal(receivedError, expectedError)
 })
