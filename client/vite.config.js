@@ -1,9 +1,10 @@
-﻿import react from '@vitejs/plugin-react'
+﻿import tailwindcss from '@tailwindcss/vite'
+import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-// Configures Vite for frontend development, production builds, and tests.
+// Configures React, Tailwind CSS, development, and Vitest.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
 
   // Vitest uses jsdom to simulate a browser for component tests.
   test: {
