@@ -19,6 +19,9 @@ import { queryClient } from './lib/queryClient'
 import PlaceholderPage from './pages/PlaceholderPage'
 import DashboardPrototypePage from './pages/DashboardPrototypePage'
 
+import LoginFormPage from './pages/LoginFormPage'
+import AnnouncementFormPage from './pages/AnnouncementFormPage'
+
 const navigation = [
   { label: 'Dashboard', path: '/', icon: LayoutDashboard },
   { label: 'My Courses', path: '/courses', icon: BookOpen },
@@ -233,19 +236,23 @@ function AppLayout() {
         <main className="px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
           <Routes>
             <Route path="/" element={<DashboardPage />} />
+            <Route path="/login" element={<LoginFormPage />} />
+            <Route path="/announcements" element={<AnnouncementFormPage />} />
 
-            {placeholderPages.map((page) => (
-              <Route
-                key={page.path}
-                path={page.path}
-                element={
-                  <PlaceholderPage
-                    title={page.title}
-                    description={page.description}
-                  />
-                }
-              />
-            ))}
+            {placeholderPages
+              .filter((page) => page.path !== '/announcements')
+              .map((page) => (
+                <Route
+                  key={page.path}
+                  path={page.path}
+                  element={
+                    <PlaceholderPage
+                      title={page.title}
+                      description={page.description}
+                    />
+                  }
+                />
+              ))}
 
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
