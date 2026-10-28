@@ -1,9 +1,96 @@
-﻿const app = require('./app')
+﻿const http = require('node:http')
+const app = require('./app')
+const env = require('./config/env')
+const { connectDatabase, disconnectDatabase } = require('./config/database')
 
-// Uses the configured port or defaults to port 5000.
-const PORT = process.env.PORT || 5000
+async function startServer() {
+  // The API must not start if the database connection fails.
+  await connectDatabase()
 
-// Starts the HTTP server so the API can receive requests.
-app.listen(PORT, () => {
-  console.log(`CampusConnect API listening on port ${PORT}`)
+  const server = http.createServer(app)
+
+  // Wait until the HTTP server is listening or startup fails.
+  await new Promise((resolve, reject) => {
+    server.once('error', reject)
+
+    server.listen(env.PORT, () => {
+      server.off('error', reject)
+      resolve()
+    })
+  })
+
+  console.log(`CampusConnect API listening on port ${env.PORT}`)
+
+  let isShuttingDown = false
+
+  async function shutdown(signal) {
+    if (isShuttingDown) {
+      return
+    }
+
+    isShuttingDown = true
+    console.log(`Received ${signal}; shutting down gracefully`)
+
+    try {
+      await new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error)
+          } else {
+            resolve()
+          }
+        })
+      })
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          message: 'HTTP server shutdown failed',
+          errorName: error.name || 'Error',
+        }),
+      )
+      process.exitCode = 1
+    } finally {
+      try {
+        await disconnectDatabase()
+      } catch (error) {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            message: 'Database shutdown failed',
+            errorName: error.name || 'Error',
+          }),
+        )
+        process.exitCode = 1
+      }
+    }
+  }
+
+  process.once('SIGINT', () => {
+    void shutdown('SIGINT')
+  })
+
+  process.once('SIGTERM', () => {
+    void shutdown('SIGTERM')
+  })
+
+  return server
+}
+
+startServer().catch(async (error) => {
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      message: 'Application startup failed',
+      errorName: error.name || 'Error',
+    }),
+  )
+
+  try {
+    await disconnectDatabase()
+  } catch {
+    // Preserve the original startup failure without exposing details.
+  }
+
+  process.exitCode = 1
 })
