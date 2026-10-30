@@ -2,6 +2,7 @@ const ApiError = require('../utils/ApiError')
 
 const MAX_PASSWORD_BYTES = 72
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const OBJECT_ID_PATTERN = /^[a-fA-F0-9]{24}$/
 
 function reject(message) {
   throw new ApiError(400, message, 'VALIDATION_ERROR')
@@ -81,7 +82,13 @@ function validateRegister(body) {
 
 function validateProvisionUser(body) {
   requireObject(body)
-  rejectUnexpectedFields(body, ['name', 'email', 'password', 'role'])
+  rejectUnexpectedFields(body, [
+    'name',
+    'email',
+    'password',
+    'role',
+    'departmentId',
+  ])
 
   const user = validateRegister({
     name: body.name,
@@ -95,9 +102,26 @@ function validateProvisionUser(body) {
     reject('A valid user role is required.')
   }
 
+  const departmentRequiredRoles = ['student', 'coordinator']
+  const departmentIdProvided = Object.hasOwn(body, 'departmentId')
+
+  if (departmentRequiredRoles.includes(body.role)) {
+    if (
+      typeof body.departmentId !== 'string' ||
+      !OBJECT_ID_PATTERN.test(body.departmentId)
+    ) {
+      reject('A valid department ID is required for this user role.')
+    }
+  } else if (departmentIdProvided) {
+    reject('Faculty and administrators cannot have a primary department.')
+  }
+
   return {
     ...user,
     role: body.role,
+    ...(departmentRequiredRoles.includes(body.role)
+      ? { departmentId: body.departmentId }
+      : {}),
   }
 }
 

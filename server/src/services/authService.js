@@ -1,4 +1,5 @@
 const User = require('../models/User')
+const Department = require('../models/Department')
 const ApiError = require('../utils/ApiError')
 const { createAccessToken } = require('../utils/authTokens')
 const {
@@ -7,15 +8,33 @@ const {
   revokeRefreshSession,
 } = require('./refreshSessionService')
 
-async function provisionUser({ name, email, password, role }) {
+async function provisionUser({ name, email, password, role, departmentId }) {
   if (!User.USER_ROLES.includes(role)) {
     throw new ApiError(400, 'Invalid user role.', 'VALIDATION_ERROR')
+  }
+
+  const departmentRequiredRoles = ['student', 'coordinator']
+
+  if (departmentRequiredRoles.includes(role)) {
+    const department = await Department.findOne({
+      _id: departmentId,
+      isActive: true,
+    })
+
+    if (!department) {
+      throw new ApiError(
+        400,
+        'The selected department does not exist or is inactive.',
+        'INVALID_DEPARTMENT',
+      )
+    }
   }
 
   const user = new User({
     name,
     email,
     role,
+    ...(departmentRequiredRoles.includes(role) ? { departmentId } : {}),
     isActive: true,
   })
 

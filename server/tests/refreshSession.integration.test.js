@@ -5,6 +5,7 @@ const { randomUUID } = require('node:crypto')
 
 const env = require('../src/config/env')
 const User = require('../src/models/User')
+const Department = require('../src/models/Department')
 const RefreshSession = require('../src/models/RefreshSession')
 
 const {
@@ -23,17 +24,21 @@ test('refresh-session integration tests', { skip: !enabled }, async (t) => {
   assert.equal(env.NODE_ENV, 'test', 'Integration tests require NODE_ENV=test.')
 
   await mongoose.connect(env.MONGODB_URI, {
+    dbName: 'campusconnect_test',
     serverSelectionTimeoutMS: 10000,
   })
 
   // Never run integration writes against a different database.
-  if (mongoose.connection.name !== 'test') {
+  if (mongoose.connection.name !== 'campusconnect_test') {
     await mongoose.disconnect()
 
-    throw new Error('Integration tests may only run against the test database.')
+    throw new Error(
+      'Integration tests may only run against campusconnect_test.',
+    )
   }
 
   const createdUserIds = []
+  const createdDepartmentIds = []
   const createdTokenHashes = []
 
   // Register cleanup before disconnect. Cleanup must run while
@@ -48,6 +53,12 @@ test('refresh-session integration tests', { skip: !enabled }, async (t) => {
 
       await User.deleteMany({
         _id: { $in: createdUserIds },
+      })
+    }
+
+    if (createdDepartmentIds.length > 0) {
+      await Department.deleteMany({
+        _id: { $in: createdDepartmentIds },
       })
     }
 
@@ -67,10 +78,20 @@ test('refresh-session integration tests', { skip: !enabled }, async (t) => {
   })
 
   async function createTestUser({ isActive = true } = {}) {
+    const department = new Department({
+      name: `Refresh Test Department ${randomUUID()}`,
+      code: `RT-${randomUUID().replace(/-/g, '').slice(0, 8)}`,
+      isActive: true,
+    })
+
+    await department.save()
+    createdDepartmentIds.push(department._id)
+
     const user = new User({
       name: 'Refresh Test User',
       email: `refresh-test-${randomUUID()}@example.test`,
       role: 'student',
+      departmentId: department._id,
       isActive,
     })
 

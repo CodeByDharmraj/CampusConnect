@@ -1,6 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const User = require('../src/models/User')
+const mongoose = require('mongoose')
 
 function createValidUser(overrides = {}) {
   return new User({
@@ -81,5 +82,99 @@ test('defines unique email and role/status indexes', () => {
 
   assert.ok(
     indexes.some(([fields]) => fields.role === 1 && fields.isActive === 1),
+  )
+})
+
+const TEST_DEPARTMENT_ID = new mongoose.Types.ObjectId()
+
+test('requires a department for student accounts', async () => {
+  const user = createValidUser({ role: 'student' })
+
+  await assert.rejects(user.validate(), (error) => {
+    assert.ok(error.errors.departmentId)
+    return true
+  })
+})
+
+test('requires a department for coordinator accounts', async () => {
+  const user = createValidUser({ role: 'coordinator' })
+
+  await assert.rejects(user.validate(), (error) => {
+    assert.ok(error.errors.departmentId)
+    return true
+  })
+})
+
+test('accepts a student with a department reference', async () => {
+  const user = createValidUser({
+    role: 'student',
+    departmentId: TEST_DEPARTMENT_ID,
+  })
+
+  await assert.doesNotReject(user.validate())
+})
+
+test('accepts a coordinator with a department reference', async () => {
+  const user = createValidUser({
+    role: 'coordinator',
+    departmentId: TEST_DEPARTMENT_ID,
+  })
+
+  await assert.doesNotReject(user.validate())
+})
+
+test('accepts faculty accounts without a primary department', async () => {
+  const user = createValidUser({ role: 'faculty' })
+
+  await assert.doesNotReject(user.validate())
+  assert.equal(user.departmentId, undefined)
+})
+
+test('rejects a primary department on faculty accounts', async () => {
+  const user = createValidUser({
+    role: 'faculty',
+    departmentId: TEST_DEPARTMENT_ID,
+  })
+
+  await assert.rejects(user.validate(), (error) => {
+    assert.ok(error.errors.departmentId)
+    return true
+  })
+})
+
+test('accepts administrator accounts without a primary department', async () => {
+  const user = createValidUser({ role: 'admin' })
+
+  await assert.doesNotReject(user.validate())
+  assert.equal(user.departmentId, undefined)
+})
+
+test('rejects a primary department on administrator accounts', async () => {
+  const user = createValidUser({
+    role: 'admin',
+    departmentId: TEST_DEPARTMENT_ID,
+  })
+
+  await assert.rejects(user.validate(), (error) => {
+    assert.ok(error.errors.departmentId)
+    return true
+  })
+})
+
+test('references Department for the primary department field', () => {
+  const departmentPath = User.schema.path('departmentId')
+
+  assert.equal(departmentPath.options.ref, 'Department')
+  assert.equal(departmentPath.instance, 'ObjectId')
+})
+
+test('defines a department, role and status lookup index', () => {
+  const indexes = User.schema.indexes()
+
+  assert.ok(
+    indexes.some(
+      ([fields]) =>
+        fields.departmentId === 1 && fields.role === 1 && fields.isActive === 1,
+    ),
   )
 })

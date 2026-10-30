@@ -1,6 +1,12 @@
 ﻿import { useEffect, useState } from 'react'
+import {
+  BrowserRouter,
+  NavLink,
+  Route,
+  Routes,
+  useNavigate,
+} from 'react-router'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter, NavLink, Route, Routes } from 'react-router'
 import {
   LayoutDashboard,
   BookOpen,
@@ -13,25 +19,73 @@ import {
   Moon,
   Menu,
   X,
+  LogIn,
+  LogOut,
+  ChevronDown,
 } from 'lucide-react'
 
 import { queryClient } from './lib/queryClient'
+import { useAuth } from './context/useAuth'
+
 import PlaceholderPage from './pages/PlaceholderPage'
 import DashboardPrototypePage from './pages/DashboardPrototypePage'
-
 import LoginFormPage from './pages/LoginFormPage'
 import AnnouncementFormPage from './pages/AnnouncementFormPage'
+import ProtectedRoute from './routes/ProtectedRoute.jsx'
+import PublicRoute from './routes/PublicRoute.jsx'
+import {
+  navigationPermissions,
+  hasPermission,
+} from './config/rolePermissions.js'
+
+// Main application navigation.
 
 const navigation = [
-  { label: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { label: 'My Courses', path: '/courses', icon: BookOpen },
-  { label: 'Timetable', path: '/timetable', icon: CalendarDays },
-  { label: 'Assignments', path: '/assignments', icon: ClipboardCheck },
-  { label: 'Attendance', path: '/attendance', icon: CalendarCheck },
-  { label: 'Announcements', path: '/announcements', icon: Megaphone },
-  { label: 'Clubs & Events', path: '/clubs-events', icon: Users },
+  {
+    label: 'Dashboard',
+    path: '/',
+    icon: LayoutDashboard,
+    permission: 'dashboard',
+  },
+  {
+    label: 'My Courses',
+    path: '/courses',
+    icon: BookOpen,
+    permission: 'courses',
+  },
+  {
+    label: 'Timetable',
+    path: '/timetable',
+    icon: CalendarDays,
+    permission: 'timetable',
+  },
+  {
+    label: 'Assignments',
+    path: '/assignments',
+    icon: ClipboardCheck,
+    permission: 'assignments',
+  },
+  {
+    label: 'Attendance',
+    path: '/attendance',
+    icon: CalendarCheck,
+    permission: 'attendance',
+  },
+  {
+    label: 'Announcements',
+    path: '/announcements',
+    icon: Megaphone,
+    permission: 'announcements',
+  },
+  {
+    label: 'Clubs & Events',
+    path: '/clubs-events',
+    icon: Users,
+    permission: 'clubsEvents',
+  },
 ]
 
+// Placeholder pages for features that will be implemented later.
 const placeholderPages = [
   {
     path: '/courses',
@@ -80,14 +134,47 @@ function NotFoundPage() {
 
 function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+
+  const { user, isAuthenticated, isLoading, logout } = useAuth()
+  const visibleNavigation = navigation.filter((item) =>
+    hasPermission(user?.role, navigationPermissions[item.permission]),
+  )
+  const navigate = useNavigate()
+
+  // Generate profile initials from the authenticated user's name.
+  const profileInitials = (user?.name || user?.email || 'U')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+
+  // Handle logout.
+  async function handleLogout() {
+    try {
+      await logout()
+    } catch (error) {
+      console.error('Logout request failed:', error)
+    } finally {
+      setProfileMenuOpen(false)
+      setMenuOpen(false)
+      navigate('/login', { replace: true })
+    }
+  }
+
+  // Dark mode state.
   const [isDark, setIsDark] = useState(() =>
     document.documentElement.classList.contains('dark'),
   )
 
+  // Synchronize dark mode with the document.
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark)
   }, [isDark])
 
+  // Sidebar navigation styling.
   const navClass = ({ isActive }) =>
     `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
       isActive
@@ -95,8 +182,10 @@ function AppLayout() {
         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
     }`
 
+  // Shared sidebar used by desktop and mobile navigation.
   const sidebar = (
     <div className="flex h-full flex-col">
+      {/* CampusConnect branding */}
       <div className="flex items-center gap-3 px-5 py-6">
         <span className="flex size-11 items-center justify-center rounded-xl bg-blue-600 text-sm font-extrabold tracking-tight text-white shadow-sm">
           CC
@@ -106,20 +195,23 @@ function AppLayout() {
           <p className="font-bold tracking-tight text-slate-900 dark:text-white">
             CampusConnect
           </p>
+
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
             Campus portal
           </p>
         </div>
       </div>
 
+      {/* Navigation heading */}
       <div className="px-4 pb-2 pt-3">
         <p className="px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
           Workspace
         </p>
       </div>
 
+      {/* Navigation links */}
       <nav aria-label="Main navigation" className="flex-1 space-y-1 px-3">
-        {navigation.map((item) => {
+        {visibleNavigation.map((item) => {
           const Icon = item.icon
 
           return (
@@ -128,7 +220,10 @@ function AppLayout() {
               to={item.path}
               end={item.path === '/'}
               className={navClass}
-              onClick={() => setMenuOpen(false)}
+              onClick={() => {
+                setMenuOpen(false)
+                setProfileMenuOpen(false)
+              }}
             >
               <span
                 aria-hidden="true"
@@ -143,6 +238,7 @@ function AppLayout() {
         })}
       </nav>
 
+      {/* Sidebar footer */}
       <div className="border-t border-slate-200 p-4 dark:border-slate-800">
         <button
           type="button"
@@ -151,6 +247,7 @@ function AppLayout() {
           className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           <span>{isDark ? 'Dark appearance' : 'Light appearance'}</span>
+
           <span aria-hidden="true">
             {isDark ? <Moon size={18} /> : <Sun size={18} />}
           </span>
@@ -197,9 +294,11 @@ function AppLayout() {
         </div>
       )}
 
+      {/* Main application area */}
       <div className="min-h-screen lg:pl-64">
         {/* Top header */}
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6 lg:px-8 dark:border-slate-800 dark:bg-slate-900/90">
+          {/* Header left section */}
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -217,47 +316,128 @@ function AppLayout() {
             </span>
           </div>
 
+          {/* Header right section */}
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-slate-500 sm:inline dark:text-slate-400">
-              Welcome to CampusConnect
-            </span>
+            {isLoading ? (
+              <span
+                aria-label="Loading account"
+                className="size-9 animate-pulse rounded-full bg-slate-200 dark:bg-slate-700"
+              />
+            ) : isAuthenticated ? (
+              <>
+                <span className="hidden text-sm text-slate-500 sm:inline dark:text-slate-400">
+                  Welcome, {user?.name || 'User'}
+                </span>
 
-            <div
-              aria-label="Guest profile"
-              title="Guest profile"
-              className="flex size-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-            >
-              G
-            </div>
+                <div className="relative">
+                  {/* Profile button */}
+                  <button
+                    type="button"
+                    onClick={() => setProfileMenuOpen((current) => !current)}
+                    aria-label="Open profile menu"
+                    aria-expanded={profileMenuOpen}
+                    aria-haspopup="menu"
+                    className="flex items-center gap-2 rounded-full p-1 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-slate-800"
+                  >
+                    <span className="flex size-10 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                      {profileInitials}
+                    </span>
+
+                    <ChevronDown
+                      size={16}
+                      className={`text-slate-500 transition-transform ${
+                        profileMenuOpen ? 'rotate-180' : ''
+                      }`}
+                      aria-hidden="true"
+                    />
+                  </button>
+
+                  {/* Profile dropdown */}
+                  {profileMenuOpen && (
+                    <div
+                      role="menu"
+                      aria-label="Profile menu"
+                      className="absolute right-0 top-full z-50 mt-3 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
+                    >
+                      <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-700">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                          {user?.name || 'User'}
+                        </p>
+
+                        <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                          {user?.email}
+                        </p>
+
+                        <span className="mt-3 inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium capitalize text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                          {user?.role}
+                        </span>
+                      </div>
+
+                      <div className="p-2">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={handleLogout}
+                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-400 dark:hover:bg-red-950/40"
+                        >
+                          <LogOut size={18} aria-hidden="true" />
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              !isLoading && (
+                <NavLink
+                  to="/login"
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                >
+                  <LogIn size={17} aria-hidden="true" />
+                  Login
+                </NavLink>
+              )
+            )}
           </div>
         </header>
 
         {/* Application routes */}
         <main className="px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
           <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/login" element={<LoginFormPage />} />
-            <Route path="/announcements" element={<AnnouncementFormPage />} />
+            {/* Public routes */}
+            <Route element={<PublicRoute />}>
+              <Route path="/login" element={<LoginFormPage />} />
+            </Route>
 
-            {placeholderPages
-              .filter((page) => page.path !== '/announcements')
-              .map((page) => (
-                <Route
-                  key={page.path}
-                  path={page.path}
-                  element={
-                    <PlaceholderPage
-                      title={page.title}
-                      description={page.description}
-                    />
-                  }
-                />
-              ))}
+            {/* All campus workspace routes require authentication */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<DashboardPage />} />
 
+              <Route path="/announcements" element={<AnnouncementFormPage />} />
+
+              {placeholderPages
+                .filter((page) => page.path !== '/announcements')
+                .map((page) => (
+                  <Route
+                    key={page.path}
+                    path={page.path}
+                    element={
+                      <PlaceholderPage
+                        title={page.title}
+                        description={page.description}
+                      />
+                    }
+                  />
+                ))}
+            </Route>
+
+            {/* Unknown routes */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
 
+        {/* Application footer */}
         <footer className="border-t border-slate-200 px-4 py-5 text-center text-xs text-slate-500 sm:px-6 lg:px-8 dark:border-slate-800 dark:text-slate-400">
           CampusConnect · One place for your campus experience
         </footer>

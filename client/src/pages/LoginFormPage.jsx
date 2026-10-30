@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
+
+import { useAuth } from '../context/useAuth.js'
 
 const initialValues = {
   email: '',
@@ -11,6 +13,10 @@ export default function LoginFormPage() {
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [feedback, setFeedback] = useState(null)
+
+  const { login, isLoading } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
 
   function handleChange(event) {
     const { name, value } = event.target
@@ -32,8 +38,6 @@ export default function LoginFormPage() {
 
     if (!values.password) {
       nextErrors.password = 'Enter your password.'
-    } else if (values.password.length < 8) {
-      nextErrors.password = 'Use at least 8 characters for this demo.'
     }
 
     return nextErrors
@@ -42,7 +46,7 @@ export default function LoginFormPage() {
   async function handleSubmit(event) {
     event.preventDefault()
 
-    if (isSubmitting) return
+    if (isSubmitting || isLoading) return
 
     const nextErrors = validate()
     setErrors(nextErrors)
@@ -53,18 +57,17 @@ export default function LoginFormPage() {
     setIsSubmitting(true)
 
     try {
-      // Demonstration only: this does not contact an API or authenticate anyone.
-      await new Promise((resolve) => setTimeout(resolve, 400))
-
-      setFeedback({
-        type: 'success',
-        message:
-          'Form validation passed. This demo has not signed you in or created a session.',
+      await login({
+        email: values.email.trim(),
+        password: values.password,
       })
-    } catch {
+      const destination = location.state?.from?.pathname || '/'
+
+      navigate(destination, { replace: true })
+    } catch (error) {
       setFeedback({
         type: 'error',
-        message: 'The demo submission failed. Please try again.',
+        message: error.message || 'Unable to sign in. Please try again.',
       })
     } finally {
       setIsSubmitting(false)
@@ -74,17 +77,21 @@ export default function LoginFormPage() {
   const fieldClass =
     'mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white'
 
+  const isDisabled = isSubmitting || isLoading
+
   return (
     <div className="mx-auto max-w-lg">
       <div className="mb-6">
         <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">
-          CampusConnect · Phase 10
+          CampusConnect · Secure access
         </p>
+
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
           Sign in
         </h1>
+
         <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
-          Explore controlled inputs and form validation in a local prototype.
+          Sign in using the account provided by your campus administrator.
         </p>
       </div>
 
@@ -100,19 +107,21 @@ export default function LoginFormPage() {
           >
             College email
           </label>
+
           <input
             id="login-email"
             name="email"
             type="email"
-            autoComplete="email"
+            autoComplete="username"
             value={values.email}
             onChange={handleChange}
             aria-invalid={Boolean(errors.email)}
             aria-describedby={errors.email ? 'login-email-error' : undefined}
             placeholder="you@example.edu"
-            disabled={isSubmitting}
+            disabled={isDisabled}
             className={fieldClass}
           />
+
           {errors.email && (
             <p
               id="login-email-error"
@@ -130,6 +139,7 @@ export default function LoginFormPage() {
           >
             Password
           </label>
+
           <input
             id="login-password"
             name="password"
@@ -141,10 +151,11 @@ export default function LoginFormPage() {
             aria-describedby={
               errors.password ? 'login-password-error' : undefined
             }
-            placeholder="At least 8 characters"
-            disabled={isSubmitting}
+            placeholder="Enter your password"
+            disabled={isDisabled}
             className={fieldClass}
           />
+
           {errors.password && (
             <p
               id="login-password-error"
@@ -157,12 +168,8 @@ export default function LoginFormPage() {
 
         {feedback && (
           <p
-            role={feedback.type === 'error' ? 'alert' : 'status'}
-            className={
-              feedback.type === 'error'
-                ? 'rounded-xl bg-red-50 p-3 text-sm leading-6 text-red-800 dark:bg-red-950/40 dark:text-red-300'
-                : 'rounded-xl bg-emerald-50 p-3 text-sm leading-6 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-            }
+            role="alert"
+            className="rounded-xl bg-red-50 p-3 text-sm leading-6 text-red-800 dark:bg-red-950/40 dark:text-red-300"
           >
             {feedback.message}
           </p>
@@ -170,16 +177,15 @@ export default function LoginFormPage() {
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isDisabled}
           className="inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-slate-900"
         >
-          {isSubmitting ? 'Checking form…' : 'Continue'}
+          {isLoading
+            ? 'Restoring session...'
+            : isSubmitting
+              ? 'Signing in...'
+              : 'Sign in'}
         </button>
-
-        <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-          Demo only. Do not enter a real password. This form does not
-          communicate with the backend.
-        </p>
 
         <div className="border-t border-slate-200 pt-4 text-sm dark:border-slate-800">
           <Link

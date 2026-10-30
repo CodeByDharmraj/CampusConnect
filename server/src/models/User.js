@@ -5,6 +5,7 @@ const SALT_ROUNDS = 12
 const MAX_PASSWORD_BYTES = 72
 
 const USER_ROLES = ['student', 'faculty', 'coordinator', 'admin']
+const DEPARTMENT_REQUIRED_ROLES = ['student', 'coordinator']
 
 const userSchema = new mongoose.Schema(
   {
@@ -36,6 +37,25 @@ const userSchema = new mongoose.Schema(
       enum: USER_ROLES,
       required: [true, 'User role is required.'],
       default: 'student',
+    },
+
+    departmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Department',
+      required: function departmentRequired() {
+        return DEPARTMENT_REQUIRED_ROLES.includes(this.role)
+      },
+      validate: {
+        validator(value) {
+          if (DEPARTMENT_REQUIRED_ROLES.includes(this.role)) {
+            return value != null
+          }
+
+          return value == null
+        },
+        message:
+          'Only students and coordinators must have a primary department.',
+      },
     },
 
     isActive: {
@@ -72,6 +92,9 @@ userSchema.index({ email: 1 }, { unique: true })
 
 // Supports queries that filter users by role and account status.
 userSchema.index({ role: 1, isActive: 1 })
+
+// Supports department-scoped user queries.
+userSchema.index({ departmentId: 1, role: 1, isActive: 1 })
 
 // Hash a password before assigning it to the document.
 userSchema.methods.setPassword = async function setPassword(password) {

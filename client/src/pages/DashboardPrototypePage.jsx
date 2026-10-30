@@ -271,7 +271,7 @@ export default function DashboardPrototypePage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
-      <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-6 dark:border-blue-950 dark:from-slate-900 dark:to-blue-950/40 sm:p-8">
+      <div className="rounded-2xl border border-blue-200 bg-linear-to-br from-white to-blue-50 p-6 dark:border-blue-950 dark:from-slate-900 dark:to-blue-950/40 sm:p-8">
         <div className="flex flex-col justify-between gap-6 xl:flex-row xl:items-end">
           <div className="max-w-2xl">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">

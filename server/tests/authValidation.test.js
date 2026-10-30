@@ -201,3 +201,148 @@ test('admin provisioning rejects invalid roles and unexpected fields', () => {
     }),
   )
 })
+
+const TEST_DEPARTMENT_ID = '507f1f77bcf86cd799439011'
+
+test('student provisioning requires a valid department ID', () => {
+  assertValidationError(() =>
+    validateProvisionUser({
+      name: 'Test Student',
+      email: 'student@example.com',
+      password: 'ExamplePassword123!',
+      role: 'student',
+    }),
+  )
+
+  assertValidationError(() =>
+    validateProvisionUser({
+      name: 'Test Student',
+      email: 'student@example.com',
+      password: 'ExamplePassword123!',
+      role: 'student',
+      departmentId: 'invalid-id',
+    }),
+  )
+
+  assert.deepEqual(
+    validateProvisionUser({
+      name: 'Test Student',
+      email: 'STUDENT@example.com',
+      password: 'ExamplePassword123!',
+      role: 'student',
+      departmentId: TEST_DEPARTMENT_ID,
+    }),
+    {
+      name: 'Test Student',
+      email: 'student@example.com',
+      password: 'ExamplePassword123!',
+      role: 'student',
+      departmentId: TEST_DEPARTMENT_ID,
+    },
+  )
+})
+
+test('coordinator provisioning requires a valid department ID', () => {
+  assertValidationError(() =>
+    validateProvisionUser({
+      name: 'Test Coordinator',
+      email: 'coordinator@example.com',
+      password: 'ExamplePassword123!',
+      role: 'coordinator',
+    }),
+  )
+
+  assert.deepEqual(
+    validateProvisionUser({
+      name: 'Test Coordinator',
+      email: 'coordinator@example.com',
+      password: 'ExamplePassword123!',
+      role: 'coordinator',
+      departmentId: TEST_DEPARTMENT_ID,
+    }),
+    {
+      name: 'Test Coordinator',
+      email: 'coordinator@example.com',
+      password: 'ExamplePassword123!',
+      role: 'coordinator',
+      departmentId: TEST_DEPARTMENT_ID,
+    },
+  )
+})
+
+test('faculty provisioning does not accept a primary department', () => {
+  assert.deepEqual(
+    validateProvisionUser({
+      name: 'Test Faculty',
+      email: 'faculty@example.com',
+      password: 'ExamplePassword123!',
+      role: 'faculty',
+    }),
+    {
+      name: 'Test Faculty',
+      email: 'faculty@example.com',
+      password: 'ExamplePassword123!',
+      role: 'faculty',
+    },
+  )
+
+  assertValidationError(() =>
+    validateProvisionUser({
+      name: 'Test Faculty',
+      email: 'faculty@example.com',
+      password: 'ExamplePassword123!',
+      role: 'faculty',
+      departmentId: TEST_DEPARTMENT_ID,
+    }),
+  )
+})
+
+test('administrator provisioning does not accept a primary department', () => {
+  assert.deepEqual(
+    validateProvisionUser({
+      name: 'Test Administrator',
+      email: 'admin@example.com',
+      password: 'ExamplePassword123!',
+      role: 'admin',
+    }),
+    {
+      name: 'Test Administrator',
+      email: 'admin@example.com',
+      password: 'ExamplePassword123!',
+      role: 'admin',
+    },
+  )
+
+  assertValidationError(() =>
+    validateProvisionUser({
+      name: 'Test Administrator',
+      email: 'admin@example.com',
+      password: 'ExamplePassword123!',
+      role: 'admin',
+      departmentId: TEST_DEPARTMENT_ID,
+    }),
+  )
+})
+
+test('department ID must be a 24-character hexadecimal string', () => {
+  const invalidDepartmentIds = [
+    '',
+    '507f1f77bcf86cd79943901',
+    '507f1f77bcf86cd7994390111',
+    '507f1f77bcf86cd79943901g',
+    507,
+    null,
+  ]
+
+  for (const departmentId of invalidDepartmentIds) {
+    assertValidationError(() =>
+      validateProvisionUser({
+        name: 'Test Student',
+        email: 'student@example.com',
+        password: 'ExamplePassword123!',
+        role: 'student',
+        departmentId,
+      }),
+    )
+  }
+})
