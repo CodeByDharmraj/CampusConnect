@@ -1,4 +1,10 @@
-﻿import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+﻿import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -205,5 +211,218 @@ describe('CampusConnect application', () => {
     )
 
     expect(logoutMock).toHaveBeenCalledTimes(1)
+  })
+
+  const roleNavigationExpectations = [
+    {
+      role: 'student',
+      visible: [
+        'Dashboard',
+        'My Courses',
+        'Timetable',
+        'Assignments',
+        'Attendance',
+        'Announcements',
+        'Clubs & Events',
+        'Grades & Feedback',
+      ],
+      hidden: [
+        'Submissions',
+        'Faculty-Course Management',
+        'Department Management',
+        'Faculty Management',
+        'Institutional Settings',
+      ],
+    },
+    {
+      role: 'faculty',
+      visible: [
+        'Dashboard',
+        'My Courses',
+        'Timetable',
+        'Assignments',
+        'Attendance',
+        'Announcements',
+        'Clubs & Events',
+        'Grades & Feedback',
+        'Submissions',
+      ],
+      hidden: [
+        'Faculty-Course Management',
+        'Department Management',
+        'Faculty Management',
+        'Institutional Settings',
+      ],
+    },
+    {
+      role: 'coordinator',
+      visible: [
+        'Dashboard',
+        'My Courses',
+        'Timetable',
+        'Assignments',
+        'Attendance',
+        'Announcements',
+        'Clubs & Events',
+        'Submissions',
+        'Faculty-Course Management',
+      ],
+      hidden: [
+        'Grades & Feedback',
+        'Department Management',
+        'Faculty Management',
+        'Institutional Settings',
+      ],
+    },
+    {
+      role: 'admin',
+      visible: [
+        'Dashboard',
+        'My Courses',
+        'Timetable',
+        'Assignments',
+        'Attendance',
+        'Announcements',
+        'Clubs & Events',
+        'Grades & Feedback',
+        'Submissions',
+        'Faculty-Course Management',
+        'Department Management',
+        'Faculty Management',
+        'Institutional Settings',
+      ],
+      hidden: [],
+    },
+  ]
+
+  it.each(roleNavigationExpectations)(
+    'shows the correct navigation for $role',
+    ({ role, visible, hidden }) => {
+      useAuthMock.mockReturnValue({
+        user: {
+          id: `${role}-1`,
+          name: `Test ${role}`,
+          email: `${role}@example.com`,
+          role,
+        },
+        isAuthenticated: true,
+        isLoading: false,
+        login: vi.fn(),
+        logout: vi.fn(),
+        refreshSession: vi.fn(),
+      })
+
+      render(<App />)
+
+      const navigation = within(
+        screen.getByRole('navigation', {
+          name: 'Main navigation',
+        }),
+      )
+
+      visible.forEach((label) => {
+        expect(
+          navigation.getByRole('link', {
+            name: new RegExp(label, 'i'),
+          }),
+        ).toBeInTheDocument()
+      })
+
+      hidden.forEach((label) => {
+        expect(
+          navigation.queryByRole('link', {
+            name: new RegExp(label, 'i'),
+          }),
+        ).not.toBeInTheDocument()
+      })
+    },
+  )
+
+  const directRouteExpectations = [
+    {
+      role: 'student',
+      path: '/faculty-course-management',
+      expectedHeading: 'Your campus, connected.',
+    },
+    {
+      role: 'faculty',
+      path: '/departments',
+      expectedHeading: 'Your campus, connected.',
+    },
+    {
+      role: 'coordinator',
+      path: '/grades',
+      expectedHeading: 'Your campus, connected.',
+    },
+    {
+      role: 'student',
+      path: '/grades',
+      expectedHeading: 'Grades & Feedback',
+    },
+    {
+      role: 'faculty',
+      path: '/submissions',
+      expectedHeading: 'Submissions',
+    },
+    {
+      role: 'coordinator',
+      path: '/submissions',
+      expectedHeading: 'Submissions',
+    },
+    {
+      role: 'admin',
+      path: '/departments',
+      expectedHeading: 'Department Management',
+    },
+  ]
+
+  it.each(directRouteExpectations)(
+    '$role accessing $path receives the correct route access',
+    ({ role, path, expectedHeading }) => {
+      useAuthMock.mockReturnValue({
+        user: {
+          id: `${role}-1`,
+          name: `Test ${role}`,
+          email: `${role}@example.com`,
+          role,
+        },
+        isAuthenticated: true,
+        isLoading: false,
+        login: vi.fn(),
+        logout: vi.fn(),
+        refreshSession: vi.fn(),
+      })
+
+      window.history.replaceState({}, '', path)
+
+      render(<App />)
+
+      expect(
+        screen.getByRole('heading', {
+          name: expectedHeading,
+        }),
+      ).toBeInTheDocument()
+    },
+  )
+
+  it('redirects an unauthenticated user from a protected management route', () => {
+    useAuthMock.mockReturnValue({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshSession: vi.fn(),
+    })
+
+    window.history.replaceState({}, '', '/faculty-course-management')
+
+    render(<App />)
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Sign in',
+      }),
+    ).toBeInTheDocument()
   })
 })

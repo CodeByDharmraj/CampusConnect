@@ -15,6 +15,11 @@ import {
   CalendarCheck,
   Megaphone,
   Users,
+  GraduationCap,
+  FileCheck,
+  Building2,
+  UserCog,
+  Settings,
   Sun,
   Moon,
   Menu,
@@ -33,13 +38,13 @@ import LoginFormPage from './pages/LoginFormPage'
 import AnnouncementFormPage from './pages/AnnouncementFormPage'
 import ProtectedRoute from './routes/ProtectedRoute.jsx'
 import PublicRoute from './routes/PublicRoute.jsx'
+
 import {
   navigationPermissions,
   hasPermission,
 } from './config/rolePermissions.js'
 
-// Main application navigation.
-
+// Each item has its own navigation visibility policy.
 const navigation = [
   {
     label: 'Dashboard',
@@ -83,14 +88,50 @@ const navigation = [
     icon: Users,
     permission: 'clubsEvents',
   },
+  {
+    label: 'Grades & Feedback',
+    path: '/grades',
+    icon: GraduationCap,
+    permission: 'grades',
+  },
+  {
+    label: 'Submissions',
+    path: '/submissions',
+    icon: FileCheck,
+    permission: 'submissions',
+  },
+  {
+    label: 'Faculty-Course Management',
+    path: '/faculty-course-management',
+    icon: Users,
+    permission: 'facultyCourseManagement',
+  },
+  {
+    label: 'Department Management',
+    path: '/departments',
+    icon: Building2,
+    permission: 'departmentManagement',
+  },
+  {
+    label: 'Faculty Management',
+    path: '/faculty-management',
+    icon: UserCog,
+    permission: 'facultyManagement',
+  },
+  {
+    label: 'Institutional Settings',
+    path: '/institutional-settings',
+    icon: Settings,
+    permission: 'institutionalSettings',
+  },
 ]
 
-// Placeholder pages for features that will be implemented later.
+// Placeholder routes for features that will be implemented later.
 const placeholderPages = [
   {
     path: '/courses',
     title: 'My Courses',
-    description: 'Access your enrolled courses and academic resources.',
+    description: 'Access your enrolled or assigned courses.',
   },
   {
     path: '/timetable',
@@ -105,17 +146,43 @@ const placeholderPages = [
   {
     path: '/attendance',
     title: 'Attendance',
-    description: 'Review your attendance records for assigned courses.',
-  },
-  {
-    path: '/announcements',
-    title: 'Announcements',
-    description: 'Find academic notices and relevant campus updates.',
+    description: 'View attendance records within your authorized scope.',
   },
   {
     path: '/clubs-events',
     title: 'Clubs & Events',
     description: 'Explore campus clubs, activities, and upcoming events.',
+  },
+  {
+    path: '/grades',
+    title: 'Grades & Feedback',
+    description: 'View grades and academic feedback.',
+  },
+  {
+    path: '/submissions',
+    title: 'Submissions',
+    description: 'Review and evaluate authorized student submissions.',
+  },
+  {
+    path: '/faculty-course-management',
+    title: 'Faculty-Course Management',
+    description:
+      'Manage faculty teaching assignments within your authorized scope.',
+  },
+  {
+    path: '/departments',
+    title: 'Department Management',
+    description: 'Manage institution departments.',
+  },
+  {
+    path: '/faculty-management',
+    title: 'Faculty Management',
+    description: 'Manage faculty accounts and information.',
+  },
+  {
+    path: '/institutional-settings',
+    title: 'Institutional Settings',
+    description: 'Manage institution-wide configuration.',
   },
 ]
 
@@ -137,12 +204,13 @@ function AppLayout() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
 
   const { user, isAuthenticated, isLoading, logout } = useAuth()
+
   const visibleNavigation = navigation.filter((item) =>
     hasPermission(user?.role, navigationPermissions[item.permission]),
   )
+
   const navigate = useNavigate()
 
-  // Generate profile initials from the authenticated user's name.
   const profileInitials = (user?.name || user?.email || 'U')
     .trim()
     .split(/\s+/)
@@ -151,7 +219,6 @@ function AppLayout() {
     .join('')
     .toUpperCase()
 
-  // Handle logout.
   async function handleLogout() {
     try {
       await logout()
@@ -164,17 +231,14 @@ function AppLayout() {
     }
   }
 
-  // Dark mode state.
   const [isDark, setIsDark] = useState(() =>
     document.documentElement.classList.contains('dark'),
   )
 
-  // Synchronize dark mode with the document.
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark)
   }, [isDark])
 
-  // Sidebar navigation styling.
   const navClass = ({ isActive }) =>
     `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
       isActive
@@ -182,10 +246,8 @@ function AppLayout() {
         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
     }`
 
-  // Shared sidebar used by desktop and mobile navigation.
   const sidebar = (
     <div className="flex h-full flex-col">
-      {/* CampusConnect branding */}
       <div className="flex items-center gap-3 px-5 py-6">
         <span className="flex size-11 items-center justify-center rounded-xl bg-blue-600 text-sm font-extrabold tracking-tight text-white shadow-sm">
           CC
@@ -195,22 +257,22 @@ function AppLayout() {
           <p className="font-bold tracking-tight text-slate-900 dark:text-white">
             CampusConnect
           </p>
-
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
             Campus portal
           </p>
         </div>
       </div>
 
-      {/* Navigation heading */}
       <div className="px-4 pb-2 pt-3">
         <p className="px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
           Workspace
         </p>
       </div>
 
-      {/* Navigation links */}
-      <nav aria-label="Main navigation" className="flex-1 space-y-1 px-3">
+      <nav
+        aria-label="Main navigation"
+        className="flex-1 space-y-1 overflow-y-auto px-3 pb-4"
+      >
         {visibleNavigation.map((item) => {
           const Icon = item.icon
 
@@ -231,14 +293,12 @@ function AppLayout() {
               >
                 <Icon size={18} strokeWidth={1.8} />
               </span>
-
               {item.label}
             </NavLink>
           )
         })}
       </nav>
 
-      {/* Sidebar footer */}
       <div className="border-t border-slate-200 p-4 dark:border-slate-800">
         <button
           type="button"
@@ -247,7 +307,6 @@ function AppLayout() {
           className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           <span>{isDark ? 'Dark appearance' : 'Light appearance'}</span>
-
           <span aria-hidden="true">
             {isDark ? <Moon size={18} /> : <Sun size={18} />}
           </span>
@@ -260,12 +319,10 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100">
-      {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
         {sidebar}
       </aside>
 
-      {/* Mobile navigation drawer */}
       {menuOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
@@ -294,11 +351,8 @@ function AppLayout() {
         </div>
       )}
 
-      {/* Main application area */}
       <div className="min-h-screen lg:pl-64">
-        {/* Top header */}
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6 lg:px-8 dark:border-slate-800 dark:bg-slate-900/90">
-          {/* Header left section */}
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -316,7 +370,6 @@ function AppLayout() {
             </span>
           </div>
 
-          {/* Header right section */}
           <div className="flex items-center gap-3">
             {isLoading ? (
               <span
@@ -330,7 +383,6 @@ function AppLayout() {
                 </span>
 
                 <div className="relative">
-                  {/* Profile button */}
                   <button
                     type="button"
                     onClick={() => setProfileMenuOpen((current) => !current)}
@@ -352,7 +404,6 @@ function AppLayout() {
                     />
                   </button>
 
-                  {/* Profile dropdown */}
                   {profileMenuOpen && (
                     <div
                       role="menu"
@@ -402,42 +453,67 @@ function AppLayout() {
           </div>
         </header>
 
-        {/* Application routes */}
         <main className="px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
           <Routes>
-            {/* Public routes */}
             <Route element={<PublicRoute />}>
               <Route path="/login" element={<LoginFormPage />} />
             </Route>
 
-            {/* All campus workspace routes require authentication */}
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<DashboardPage />} />
 
               <Route path="/announcements" element={<AnnouncementFormPage />} />
 
-              {placeholderPages
-                .filter((page) => page.path !== '/announcements')
-                .map((page) => (
+              {placeholderPages.map((page) => {
+                const permission = navigation.find(
+                  (item) => item.path === page.path,
+                )?.permission
+
+                return (
                   <Route
                     key={page.path}
-                    path={page.path}
                     element={
-                      <PlaceholderPage
-                        title={page.title}
-                        description={page.description}
+                      <ProtectedRoute
+                        allowedRoles={navigationPermissions[permission]}
                       />
                     }
+                  >
+                    <Route
+                      path={page.path}
+                      element={
+                        <PlaceholderPage
+                          title={page.title}
+                          description={page.description}
+                        />
+                      }
+                    />
+                  </Route>
+                )
+              })}
+
+              <Route
+                element={
+                  <ProtectedRoute
+                    allowedRoles={navigationPermissions.clubsEvents}
                   />
-                ))}
+                }
+              >
+                <Route
+                  path="/clubs-events"
+                  element={
+                    <PlaceholderPage
+                      title="Clubs & Events"
+                      description="Explore campus clubs, activities, and upcoming events."
+                    />
+                  }
+                />
+              </Route>
             </Route>
 
-            {/* Unknown routes */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
 
-        {/* Application footer */}
         <footer className="border-t border-slate-200 px-4 py-5 text-center text-xs text-slate-500 sm:px-6 lg:px-8 dark:border-slate-800 dark:text-slate-400">
           CampusConnect · One place for your campus experience
         </footer>
