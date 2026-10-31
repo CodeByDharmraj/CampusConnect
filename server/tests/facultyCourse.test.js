@@ -1,4 +1,4 @@
-const test = require('node:test')
+﻿const test = require('node:test')
 const assert = require('node:assert/strict')
 const mongoose = require('mongoose')
 const FacultyCourse = require('../src/models/FacultyCourse')
@@ -6,20 +6,10 @@ const FacultyCourse = require('../src/models/FacultyCourse')
 function createValidAssignment(overrides = {}) {
   return new FacultyCourse({
     facultyId: new mongoose.Types.ObjectId(),
-    courseId: new mongoose.Types.ObjectId(),
-    academicYear: '2026-2027',
-    semester: 5,
+    courseOfferingId: new mongoose.Types.ObjectId(),
     ...overrides,
   })
 }
-
-test('normalizes academic year whitespace', () => {
-  const assignment = createValidAssignment({
-    academicYear: '  2026-2027  ',
-  })
-
-  assert.equal(assignment.academicYear, '2026-2027')
-})
 
 test('applies active assignment default', () => {
   const assignment = createValidAssignment({
@@ -29,14 +19,12 @@ test('applies active assignment default', () => {
   assert.equal(assignment.isActive, true)
 })
 
-test('requires faculty, course, academic year and semester', async () => {
+test('requires faculty and course offering', async () => {
   const assignment = new FacultyCourse()
 
   await assert.rejects(assignment.validate(), (error) => {
     assert.ok(error.errors.facultyId)
-    assert.ok(error.errors.courseId)
-    assert.ok(error.errors.academicYear)
-    assert.ok(error.errors.semester)
+    assert.ok(error.errors.courseOfferingId)
     return true
   })
 })
@@ -52,57 +40,13 @@ test('rejects an invalid faculty ObjectId', async () => {
   })
 })
 
-test('rejects an invalid course ObjectId', async () => {
+test('rejects an invalid course offering ObjectId', async () => {
   const assignment = createValidAssignment({
-    courseId: 'invalid-id',
+    courseOfferingId: 'invalid-id',
   })
 
   await assert.rejects(assignment.validate(), (error) => {
-    assert.ok(error.errors.courseId)
-    return true
-  })
-})
-
-test('rejects an academic year with an invalid format', async () => {
-  const assignment = createValidAssignment({
-    academicYear: '2026/2027',
-  })
-
-  await assert.rejects(assignment.validate(), (error) => {
-    assert.ok(error.errors.academicYear)
-    return true
-  })
-})
-
-test('rejects academic years that are not consecutive', async () => {
-  const assignment = createValidAssignment({
-    academicYear: '2026-2028',
-  })
-
-  await assert.rejects(assignment.validate(), (error) => {
-    assert.ok(error.errors.academicYear)
-    return true
-  })
-})
-
-test('rejects semesters below one or above eight', async () => {
-  for (const semester of [0, 9]) {
-    const assignment = createValidAssignment({ semester })
-
-    await assert.rejects(assignment.validate(), (error) => {
-      assert.ok(error.errors.semester)
-      return true
-    })
-  }
-})
-
-test('rejects fractional semester values', async () => {
-  const assignment = createValidAssignment({
-    semester: 5.5,
-  })
-
-  await assert.rejects(assignment.validate(), (error) => {
-    assert.ok(error.errors.semester)
+    assert.ok(error.errors.courseOfferingId)
     return true
   })
 })
@@ -114,39 +58,39 @@ test('references the User model for faculty', () => {
   assert.equal(facultyPath.options.ref, 'User')
 })
 
-test('references the Course model', () => {
-  const coursePath = FacultyCourse.schema.path('courseId')
+test('references the CourseOffering model', () => {
+  const offeringPath = FacultyCourse.schema.path('courseOfferingId')
 
-  assert.equal(coursePath.instance, 'ObjectId')
-  assert.equal(coursePath.options.ref, 'Course')
+  assert.equal(offeringPath.instance, 'ObjectId')
+  assert.equal(offeringPath.options.ref, 'CourseOffering')
 })
 
-test('defines a unique index for active faculty course assignments', () => {
+test('does not duplicate academic term fields', () => {
+  assert.equal(FacultyCourse.schema.path('courseId'), undefined)
+  assert.equal(FacultyCourse.schema.path('academicYear'), undefined)
+  assert.equal(FacultyCourse.schema.path('semester'), undefined)
+})
+
+test('defines a unique index for active faculty offering assignments', () => {
   const indexes = FacultyCourse.schema.indexes()
 
   assert.ok(
     indexes.some(
       ([fields, options]) =>
         fields.facultyId === 1 &&
-        fields.courseId === 1 &&
-        fields.academicYear === 1 &&
-        fields.semester === 1 &&
+        fields.courseOfferingId === 1 &&
         options.unique === true &&
         options.partialFilterExpression?.isActive === true,
     ),
   )
 })
 
-test('defines course assignment lookup index', () => {
+test('defines course offering assignment lookup index', () => {
   const indexes = FacultyCourse.schema.indexes()
 
   assert.ok(
     indexes.some(
-      ([fields]) =>
-        fields.courseId === 1 &&
-        fields.academicYear === 1 &&
-        fields.semester === 1 &&
-        fields.isActive === 1,
+      ([fields]) => fields.courseOfferingId === 1 && fields.isActive === 1,
     ),
   )
 })
@@ -155,13 +99,7 @@ test('defines faculty assignment lookup index', () => {
   const indexes = FacultyCourse.schema.indexes()
 
   assert.ok(
-    indexes.some(
-      ([fields]) =>
-        fields.facultyId === 1 &&
-        fields.academicYear === 1 &&
-        fields.semester === 1 &&
-        fields.isActive === 1,
-    ),
+    indexes.some(([fields]) => fields.facultyId === 1 && fields.isActive === 1),
   )
 })
 

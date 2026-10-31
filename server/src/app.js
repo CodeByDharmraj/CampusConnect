@@ -6,6 +6,7 @@ const requestLogger = require('./middleware/requestLogger')
 const notFound = require('./middleware/notFound')
 const errorHandler = require('./middleware/errorHandler')
 const authRoutes = require('./routes/authRoutes')
+const courseRoutes = require('./routes/courseRoutes')
 
 // Creates the Express application.
 const app = express()
@@ -40,8 +41,11 @@ app.get('/api/v1/health', (req, res) => {
   })
 })
 
-// Authentication routes will be registered here before notFound.
+// Authentication endpoints.
 app.use('/api/v1/auth', authRoutes)
+
+// Course management and visibility endpoints.
+app.use('/api/v1/courses', courseRoutes)
 
 // Unknown routes must be handled after all registered routes.
 app.use(notFound)

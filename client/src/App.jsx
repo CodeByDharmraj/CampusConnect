@@ -38,6 +38,7 @@ import LoginFormPage from './pages/LoginFormPage'
 import AnnouncementFormPage from './pages/AnnouncementFormPage'
 import ProtectedRoute from './routes/ProtectedRoute.jsx'
 import PublicRoute from './routes/PublicRoute.jsx'
+import DesignSystemPage from './pages/DesignSystemPage.jsx'
 
 import {
   navigationPermissions,
@@ -461,6 +462,12 @@ function AppLayout() {
 
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<DashboardPage />} />
+
+              {import.meta.env.DEV && (
+                <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                  <Route path="/design-system" element={<DesignSystemPage />} />
+                </Route>
+              )}
 
               <Route path="/announcements" element={<AnnouncementFormPage />} />
 

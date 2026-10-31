@@ -1,4 +1,4 @@
-const test = require('node:test')
+﻿const test = require('node:test')
 const assert = require('node:assert/strict')
 const mongoose = require('mongoose')
 const Enrollment = require('../src/models/Enrollment')
@@ -6,20 +6,10 @@ const Enrollment = require('../src/models/Enrollment')
 function createValidEnrollment(overrides = {}) {
   return new Enrollment({
     studentId: new mongoose.Types.ObjectId(),
-    courseId: new mongoose.Types.ObjectId(),
-    academicYear: '2026-2027',
-    semester: 5,
+    courseOfferingId: new mongoose.Types.ObjectId(),
     ...overrides,
   })
 }
-
-test('normalizes academic year whitespace', () => {
-  const enrollment = createValidEnrollment({
-    academicYear: '  2026-2027  ',
-  })
-
-  assert.equal(enrollment.academicYear, '2026-2027')
-})
 
 test('defaults enrollment status to enrolled', () => {
   const enrollment = createValidEnrollment()
@@ -27,14 +17,12 @@ test('defaults enrollment status to enrolled', () => {
   assert.equal(enrollment.status, 'enrolled')
 })
 
-test('requires student, course, academic year and semester', async () => {
+test('requires student and course offering', async () => {
   const enrollment = new Enrollment()
 
   await assert.rejects(enrollment.validate(), (error) => {
     assert.ok(error.errors.studentId)
-    assert.ok(error.errors.courseId)
-    assert.ok(error.errors.academicYear)
-    assert.ok(error.errors.semester)
+    assert.ok(error.errors.courseOfferingId)
     return true
   })
 })
@@ -50,57 +38,13 @@ test('rejects an invalid student ObjectId', async () => {
   })
 })
 
-test('rejects an invalid course ObjectId', async () => {
+test('rejects an invalid course offering ObjectId', async () => {
   const enrollment = createValidEnrollment({
-    courseId: 'invalid-id',
+    courseOfferingId: 'invalid-id',
   })
 
   await assert.rejects(enrollment.validate(), (error) => {
-    assert.ok(error.errors.courseId)
-    return true
-  })
-})
-
-test('rejects an academic year with an invalid format', async () => {
-  const enrollment = createValidEnrollment({
-    academicYear: '2026/2027',
-  })
-
-  await assert.rejects(enrollment.validate(), (error) => {
-    assert.ok(error.errors.academicYear)
-    return true
-  })
-})
-
-test('rejects academic years that are not consecutive', async () => {
-  const enrollment = createValidEnrollment({
-    academicYear: '2026-2028',
-  })
-
-  await assert.rejects(enrollment.validate(), (error) => {
-    assert.ok(error.errors.academicYear)
-    return true
-  })
-})
-
-test('rejects semesters below one or above eight', async () => {
-  for (const semester of [0, 9]) {
-    const enrollment = createValidEnrollment({ semester })
-
-    await assert.rejects(enrollment.validate(), (error) => {
-      assert.ok(error.errors.semester)
-      return true
-    })
-  }
-})
-
-test('rejects fractional semester values', async () => {
-  const enrollment = createValidEnrollment({
-    semester: 5.5,
-  })
-
-  await assert.rejects(enrollment.validate(), (error) => {
-    assert.ok(error.errors.semester)
+    assert.ok(error.errors.courseOfferingId)
     return true
   })
 })
@@ -132,23 +76,27 @@ test('references the User model for students', () => {
   assert.equal(studentPath.options.ref, 'User')
 })
 
-test('references the Course model', () => {
-  const coursePath = Enrollment.schema.path('courseId')
+test('references the CourseOffering model', () => {
+  const offeringPath = Enrollment.schema.path('courseOfferingId')
 
-  assert.equal(coursePath.instance, 'ObjectId')
-  assert.equal(coursePath.options.ref, 'Course')
+  assert.equal(offeringPath.instance, 'ObjectId')
+  assert.equal(offeringPath.options.ref, 'CourseOffering')
 })
 
-test('defines a permanent unique student course term index', () => {
+test('does not duplicate academic term fields', () => {
+  assert.equal(Enrollment.schema.path('courseId'), undefined)
+  assert.equal(Enrollment.schema.path('academicYear'), undefined)
+  assert.equal(Enrollment.schema.path('semester'), undefined)
+})
+
+test('defines a permanent unique student offering index', () => {
   const indexes = Enrollment.schema.indexes()
 
   assert.ok(
     indexes.some(
       ([fields, options]) =>
         fields.studentId === 1 &&
-        fields.courseId === 1 &&
-        fields.academicYear === 1 &&
-        fields.semester === 1 &&
+        fields.courseOfferingId === 1 &&
         options.unique === true &&
         options.partialFilterExpression === undefined,
     ),
@@ -159,30 +107,28 @@ test('defines student enrollment lookup index', () => {
   const indexes = Enrollment.schema.indexes()
 
   assert.ok(
-    indexes.some(
-      ([fields]) =>
-        fields.studentId === 1 &&
-        fields.academicYear === 1 &&
-        fields.semester === 1 &&
-        fields.status === 1,
-    ),
+    indexes.some(([fields]) => fields.studentId === 1 && fields.status === 1),
   )
 })
 
-test('defines course roster lookup index', () => {
+test('defines course offering roster lookup index', () => {
   const indexes = Enrollment.schema.indexes()
 
   assert.ok(
     indexes.some(
-      ([fields]) =>
-        fields.courseId === 1 &&
-        fields.academicYear === 1 &&
-        fields.semester === 1 &&
-        fields.status === 1,
+      ([fields]) => fields.courseOfferingId === 1 && fields.status === 1,
     ),
   )
 })
 
 test('enables automatic timestamps', () => {
   assert.equal(Enrollment.schema.options.timestamps, true)
+})
+
+test('exports supported enrollment statuses', () => {
+  assert.deepEqual(Enrollment.ENROLLMENT_STATUSES, [
+    'enrolled',
+    'completed',
+    'withdrawn',
+  ])
 })

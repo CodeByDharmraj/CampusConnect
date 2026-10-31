@@ -2,10 +2,14 @@
 const app = require('./app')
 const env = require('./config/env')
 const { connectDatabase, disconnectDatabase } = require('./config/database')
+const initializeAcademicIndexes = require('./config/initializeAcademicIndexes')
 
 async function startServer() {
   // The API must not start if the database connection fails.
   await connectDatabase()
+
+  // Academic collections and their indexes must be ready before requests.
+  await initializeAcademicIndexes()
 
   const server = http.createServer(app)
 

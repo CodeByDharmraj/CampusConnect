@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+﻿const mongoose = require('mongoose')
 
 const facultyCourseSchema = new mongoose.Schema(
   {
@@ -8,37 +8,10 @@ const facultyCourseSchema = new mongoose.Schema(
       required: [true, 'Faculty reference is required.'],
     },
 
-    courseId: {
+    courseOfferingId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Course',
-      required: [true, 'Course reference is required.'],
-    },
-
-    academicYear: {
-      type: String,
-      required: [true, 'Academic year is required.'],
-      trim: true,
-      match: [/^\d{4}-\d{4}$/, 'Academic year must use the YYYY-YYYY format.'],
-      validate: {
-        validator(value) {
-          if (!/^\d{4}-\d{4}$/.test(value)) return false
-
-          const [startYear, endYear] = value.split('-').map(Number)
-          return endYear === startYear + 1
-        },
-        message: 'Academic year must contain consecutive years.',
-      },
-    },
-
-    semester: {
-      type: Number,
-      required: [true, 'Semester is required.'],
-      min: 1,
-      max: 8,
-      validate: {
-        validator: Number.isInteger,
-        message: 'Semester must be a whole number.',
-      },
+      ref: 'CourseOffering',
+      required: [true, 'Course offering reference is required.'],
     },
 
     isActive: {
@@ -52,14 +25,11 @@ const facultyCourseSchema = new mongoose.Schema(
   },
 )
 
-// Prevents duplicate active assignments for the same
-// faculty, course and academic period.
+// Prevent duplicate active assignments for the same faculty and offering.
 facultyCourseSchema.index(
   {
     facultyId: 1,
-    courseId: 1,
-    academicYear: 1,
-    semester: 1,
+    courseOfferingId: 1,
   },
   {
     unique: true,
@@ -67,19 +37,15 @@ facultyCourseSchema.index(
   },
 )
 
-// Supports finding active faculty assignments for a course.
+// Supports finding active faculty assigned to an offering.
 facultyCourseSchema.index({
-  courseId: 1,
-  academicYear: 1,
-  semester: 1,
+  courseOfferingId: 1,
   isActive: 1,
 })
 
 // Supports finding a faculty member's active assignments.
 facultyCourseSchema.index({
   facultyId: 1,
-  academicYear: 1,
-  semester: 1,
   isActive: 1,
 })
 
