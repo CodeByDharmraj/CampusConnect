@@ -77,10 +77,16 @@ describe('CampusConnect role permissions', () => {
     expect(clubsEventsPermissions.manageInstitution).toEqual([ROLES.ADMIN])
   })
 
-  it('allows all roles to view core academic navigation', () => {
+  it('restricts My Courses navigation to students and faculty', () => {
+    expect(navigationPermissions.courses).toEqual([
+      ROLES.STUDENT,
+      ROLES.FACULTY,
+    ])
+  })
+
+  it('allows all roles to view shared academic navigation', () => {
     const features = [
       'dashboard',
-      'courses',
       'timetable',
       'assignments',
       'attendance',

@@ -11,7 +11,7 @@ export const ALL_ROLES = Object.values(ROLES)
 // Backend authorization remains the actual security boundary.
 export const navigationPermissions = {
   dashboard: ALL_ROLES,
-  courses: ALL_ROLES,
+  courses: [ROLES.STUDENT, ROLES.FACULTY],
   timetable: ALL_ROLES,
   assignments: ALL_ROLES,
   attendance: ALL_ROLES,
@@ -23,6 +23,8 @@ export const navigationPermissions = {
   departmentManagement: [ROLES.ADMIN],
   facultyManagement: [ROLES.ADMIN],
   institutionalSettings: [ROLES.ADMIN],
+  enrollmentManagement: [ROLES.ADMIN],
+  assignmentManagement: [ROLES.FACULTY],
 }
 
 // Timetable permissions.

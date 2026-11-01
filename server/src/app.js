@@ -7,6 +7,11 @@ const notFound = require('./middleware/notFound')
 const errorHandler = require('./middleware/errorHandler')
 const authRoutes = require('./routes/authRoutes')
 const courseRoutes = require('./routes/courseRoutes')
+const courseOfferingRoutes = require('./routes/courseOfferingRoutes')
+const enrollmentRoutes = require('./routes/enrollmentRoutes')
+const departmentRoutes = require('./routes/departmentRoutes')
+const timetableRoutes = require('./routes/timetableRoutes')
+const assignmentRoutes = require('./routes/assignmentRoutes')
 
 // Creates the Express application.
 const app = express()
@@ -46,6 +51,21 @@ app.use('/api/v1/auth', authRoutes)
 
 // Course management and visibility endpoints.
 app.use('/api/v1/courses', courseRoutes)
+
+// Faculty assignment management for course offerings.
+app.use('/api/v1/course-offerings', courseOfferingRoutes)
+
+// Administrator-only student enrollment management.
+app.use('/api/v1/enrollments', enrollmentRoutes)
+
+// Department management endpoints.
+app.use('/api/v1/departments', departmentRoutes)
+
+// Timetable management and role-scoped timetable visibility.
+app.use('/api/v1/timetable', timetableRoutes)
+
+// Assignment creation, publication and role-scoped visibility.
+app.use('/api/v1/assignments', assignmentRoutes)
 
 // Unknown routes must be handled after all registered routes.
 app.use(notFound)

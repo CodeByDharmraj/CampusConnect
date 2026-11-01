@@ -114,8 +114,17 @@ async function logout(refreshToken) {
   await revokeRefreshSession(refreshToken)
 }
 
+async function getFacultyAccounts() {
+  return User.find({ role: 'faculty' })
+    .select('name email role isActive createdAt')
+    .sort({ name: 1, email: 1 })
+    .limit(500)
+    .lean()
+}
+
 module.exports = {
   provisionUser,
+  getFacultyAccounts,
   login,
   refresh,
   logout,

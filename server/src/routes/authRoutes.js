@@ -32,6 +32,21 @@ router.post(
   }),
 )
 
+// Only administrators can view faculty accounts.
+router.get(
+  '/faculty',
+  authenticate,
+  authorizeRoles('admin'),
+  asyncHandler(async (_req, res) => {
+    const faculty = await authService.getFacultyAccounts()
+
+    return res.status(200).json({
+      success: true,
+      data: { faculty },
+    })
+  }),
+)
+
 // Login returns an access token and stores the refresh token in a cookie.
 router.post(
   '/login',

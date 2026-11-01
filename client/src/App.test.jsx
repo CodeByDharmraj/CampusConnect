@@ -258,7 +258,6 @@ describe('CampusConnect application', () => {
       role: 'coordinator',
       visible: [
         'Dashboard',
-        'My Courses',
         'Timetable',
         'Assignments',
         'Attendance',
@@ -268,6 +267,7 @@ describe('CampusConnect application', () => {
         'Faculty-Course Management',
       ],
       hidden: [
+        'My Courses',
         'Grades & Feedback',
         'Department Management',
         'Faculty Management',
@@ -278,7 +278,6 @@ describe('CampusConnect application', () => {
       role: 'admin',
       visible: [
         'Dashboard',
-        'My Courses',
         'Timetable',
         'Assignments',
         'Attendance',
@@ -291,7 +290,7 @@ describe('CampusConnect application', () => {
         'Faculty Management',
         'Institutional Settings',
       ],
-      hidden: [],
+      hidden: ['My Courses'],
     },
   ]
 

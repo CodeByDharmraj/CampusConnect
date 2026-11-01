@@ -27,6 +27,7 @@ import {
   LogIn,
   LogOut,
   ChevronDown,
+  ClipboardList,
 } from 'lucide-react'
 
 import { queryClient } from './lib/queryClient'
@@ -39,6 +40,12 @@ import AnnouncementFormPage from './pages/AnnouncementFormPage'
 import ProtectedRoute from './routes/ProtectedRoute.jsx'
 import PublicRoute from './routes/PublicRoute.jsx'
 import DesignSystemPage from './pages/DesignSystemPage.jsx'
+import EnrollmentManagementPage from './pages/EnrollmentManagementPage.jsx'
+import MyCoursesPage from './pages/MyCoursesPage'
+import TimetablePage from './pages/TimetablePage.jsx'
+import FacultyCourseManagementPage from './pages/FacultyCourseManagementPage.jsx'
+import FacultyManagementPage from './pages/FacultyManagementPage.jsx'
+import AssignmentManagementPage from './pages/AssignmentManagementPage.jsx'
 
 import {
   navigationPermissions,
@@ -120,25 +127,27 @@ const navigation = [
     permission: 'facultyManagement',
   },
   {
+    label: 'Assignment Management',
+    path: '/assignment-management',
+    icon: ClipboardList,
+    permission: 'assignmentManagement',
+  },
+  {
     label: 'Institutional Settings',
     path: '/institutional-settings',
     icon: Settings,
     permission: 'institutionalSettings',
   },
+  {
+    label: 'Enrollment Management',
+    path: '/enrollments',
+    icon: Users,
+    permission: 'enrollmentManagement',
+  },
 ]
 
 // Placeholder routes for features that will be implemented later.
 const placeholderPages = [
-  {
-    path: '/courses',
-    title: 'My Courses',
-    description: 'Access your enrolled or assigned courses.',
-  },
-  {
-    path: '/timetable',
-    title: 'Timetable',
-    description: 'View your class schedule and upcoming sessions.',
-  },
   {
     path: '/assignments',
     title: 'Assignments',
@@ -165,20 +174,9 @@ const placeholderPages = [
     description: 'Review and evaluate authorized student submissions.',
   },
   {
-    path: '/faculty-course-management',
-    title: 'Faculty-Course Management',
-    description:
-      'Manage faculty teaching assignments within your authorized scope.',
-  },
-  {
     path: '/departments',
     title: 'Department Management',
     description: 'Manage institution departments.',
-  },
-  {
-    path: '/faculty-management',
-    title: 'Faculty Management',
-    description: 'Manage faculty accounts and information.',
   },
   {
     path: '/institutional-settings',
@@ -463,11 +461,63 @@ function AppLayout() {
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<DashboardPage />} />
 
+              <Route
+                element={
+                  <ProtectedRoute allowedRoles={['student', 'faculty']} />
+                }
+              >
+                <Route path="/courses" element={<MyCoursesPage />} />
+              </Route>
+
+              <Route
+                element={
+                  <ProtectedRoute
+                    allowedRoles={navigationPermissions.timetable}
+                  />
+                }
+              >
+                <Route path="/timetable" element={<TimetablePage />} />
+              </Route>
+
               {import.meta.env.DEV && (
                 <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                   <Route path="/design-system" element={<DesignSystemPage />} />
                 </Route>
               )}
+
+              <Route
+                element={
+                  <ProtectedRoute
+                    allowedRoles={navigationPermissions.facultyCourseManagement}
+                  />
+                }
+              >
+                <Route
+                  path="/faculty-course-management"
+                  element={<FacultyCourseManagementPage />}
+                />
+              </Route>
+
+              <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                <Route
+                  path="/enrollments"
+                  element={<EnrollmentManagementPage />}
+                />
+              </Route>
+
+              <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                <Route
+                  path="/faculty-management"
+                  element={<FacultyManagementPage />}
+                />
+              </Route>
+
+              <Route element={<ProtectedRoute allowedRoles={['faculty']} />}>
+                <Route
+                  path="/assignment-management"
+                  element={<AssignmentManagementPage />}
+                />
+              </Route>
 
               <Route path="/announcements" element={<AnnouncementFormPage />} />
 

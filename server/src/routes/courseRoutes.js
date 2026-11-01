@@ -4,6 +4,7 @@ const authenticate = require('../middleware/authenticate')
 const authorizeRoles = require('../middleware/authorizeRoles')
 const courseService = require('../services/courseService')
 const asyncHandler = require('../utils/asyncHandler')
+const myCoursesService = require('../services/myCoursesService')
 
 const {
   validateCreateCourse,
@@ -15,6 +16,21 @@ const router = express.Router()
 
 // Every course endpoint requires an authenticated, active user.
 router.use(authenticate)
+
+// Return only the authenticated student's or faculty member's
+// current course offerings.
+router.get(
+  '/my',
+  authorizeRoles('student', 'faculty'),
+  asyncHandler(async (req, res) => {
+    const courses = await myCoursesService.getMyCourses(req.user)
+
+    return res.status(200).json({
+      success: true,
+      data: { courses },
+    })
+  }),
+)
 
 // Create a course. Coordinators are restricted to their own department
 // by the Course Service; administrators can select any active department.

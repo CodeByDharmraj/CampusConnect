@@ -9,15 +9,17 @@ const models = [
   require('../src/models/Enrollment'),
   require('../src/models/FacultyCourse'),
   require('../src/models/CourseOfferingReactivationRequest'),
+  require('../src/models/TimetableEntry'),
 ]
 
-test('initializes all five academic models', async () => {
+test('initializes all six academic models', async () => {
   const expectedModels = [
     'Course',
     'CourseOffering',
     'Enrollment',
     'FacultyCourse',
     'CourseOfferingReactivationRequest',
+    'TimetableEntry',
   ]
 
   const initializedModels = []

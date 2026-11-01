@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:integration": "node --test tests/refreshSession.integration.test.js"
+    "test:integration": "node --test tests/refreshSession.integration.test.js",
+    "seed": "node src/scripts/seedDevelopment.js"
   },
   "keywords": [],
   "author": "",
