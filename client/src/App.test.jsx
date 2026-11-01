@@ -1,4 +1,5 @@
-﻿import {
+﻿
+import {
   cleanup,
   fireEvent,
   render,
@@ -10,7 +11,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App.jsx'
 
-// Create a mock function that can be used by the mocked authentication hook.
 const { useAuthMock } = vi.hoisted(() => ({
   useAuthMock: vi.fn(),
 }))
@@ -19,27 +19,32 @@ vi.mock('./context/useAuth', () => ({
   useAuth: useAuthMock,
 }))
 
-afterEach(() => {
-  cleanup()
-  document.documentElement.classList.remove('dark')
-  window.history.replaceState({}, '', '/')
-})
-
-beforeEach(() => {
-  // Default test user: authenticated student.
-  useAuthMock.mockReturnValue({
+function createAuthenticatedUser(role = 'student') {
+  return {
     user: {
-      id: 'student-1',
-      name: 'Test Student',
-      email: 'student@example.com',
-      role: 'student',
+      id: `${role}-1`,
+      name: `Test ${role.charAt(0).toUpperCase()}${role.slice(1)}`,
+      email: `${role}@example.com`,
+      role,
     },
+    accessToken: null,
     isAuthenticated: true,
     isLoading: false,
     login: vi.fn(),
     logout: vi.fn(),
     refreshSession: vi.fn(),
-  })
+  }
+}
+
+afterEach(() => {
+  cleanup()
+  document.documentElement.classList.remove('dark')
+  window.history.replaceState({}, '', '/')
+  vi.clearAllMocks()
+})
+
+beforeEach(() => {
+  useAuthMock.mockReturnValue(createAuthenticatedUser('student'))
 })
 
 describe('CampusConnect application', () => {
@@ -48,11 +53,15 @@ describe('CampusConnect application', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: 'Your campus, connected.',
+        name: 'At a glance',
       }),
     ).toBeInTheDocument()
 
-    expect(screen.getByText('Welcome, Test Student')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', {
+        name: 'Welcome, Test Student',
+      }),
+    ).toBeInTheDocument()
   })
 
   it('navigates to the timetable page', () => {
@@ -104,6 +113,7 @@ describe('CampusConnect application', () => {
   it('redirects unauthenticated users to the login page', () => {
     useAuthMock.mockReturnValue({
       user: null,
+      accessToken: null,
       isAuthenticated: false,
       isLoading: false,
       login: vi.fn(),
@@ -119,14 +129,19 @@ describe('CampusConnect application', () => {
       }),
     ).toBeInTheDocument()
 
-    expect(screen.getByLabelText('College email')).toBeInTheDocument()
+    expect(
+      screen.getByLabelText('College email'),
+    ).toBeInTheDocument()
 
-    expect(screen.getByLabelText('Password')).toBeInTheDocument()
+    expect(
+      screen.getByLabelText('Password'),
+    ).toBeInTheDocument()
   })
 
   it('shows a loading state while restoring the session', () => {
     useAuthMock.mockReturnValue({
       user: null,
+      accessToken: null,
       isAuthenticated: false,
       isLoading: true,
       login: vi.fn(),
@@ -136,30 +151,29 @@ describe('CampusConnect application', () => {
 
     render(<App />)
 
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Checking your session...',
-    )
+    expect(
+      screen.getByRole('status'),
+    ).toHaveTextContent('Checking your session...')
   })
+
 
   it('shows the authenticated user profile', () => {
     useAuthMock.mockReturnValue({
+      ...createAuthenticatedUser('admin'),
       user: {
         id: 'admin-1',
         name: 'Campus Administrator',
         email: 'admin@example.com',
         role: 'admin',
       },
-      isAuthenticated: true,
-      isLoading: false,
-      login: vi.fn(),
-      logout: vi.fn(),
-      refreshSession: vi.fn(),
     })
 
     render(<App />)
 
     expect(
-      screen.getByText('Welcome, Campus Administrator'),
+      screen.getByRole('heading', {
+        name: 'Welcome, Campus Administrator',
+      }),
     ).toBeInTheDocument()
 
     fireEvent.click(
@@ -168,32 +182,36 @@ describe('CampusConnect application', () => {
       }),
     )
 
-    expect(screen.getByText('admin@example.com')).toBeInTheDocument()
-
-    expect(screen.getByText('admin')).toBeInTheDocument()
+    const profileMenu = screen.getByRole('menu')
 
     expect(
-      screen.getByRole('menuitem', {
+      within(profileMenu).getByText('admin@example.com'),
+    ).toBeInTheDocument()
+
+    expect(
+      within(profileMenu).getByText('admin'),
+    ).toBeInTheDocument()
+
+    expect(
+      within(profileMenu).getByRole('menuitem', {
         name: /Logout/,
       }),
     ).toBeInTheDocument()
   })
+  
 
-  it('calls the logout function when the user clicks Logout', async () => {
+  it('calls the logout function when the user clicks Logout', () => {
     const logoutMock = vi.fn().mockResolvedValue(undefined)
 
     useAuthMock.mockReturnValue({
+      ...createAuthenticatedUser('admin'),
       user: {
         id: 'admin-1',
         name: 'Campus Administrator',
         email: 'admin@example.com',
         role: 'admin',
       },
-      isAuthenticated: true,
-      isLoading: false,
-      login: vi.fn(),
       logout: logoutMock,
-      refreshSession: vi.fn(),
     })
 
     render(<App />)
@@ -297,19 +315,7 @@ describe('CampusConnect application', () => {
   it.each(roleNavigationExpectations)(
     'shows the correct navigation for $role',
     ({ role, visible, hidden }) => {
-      useAuthMock.mockReturnValue({
-        user: {
-          id: `${role}-1`,
-          name: `Test ${role}`,
-          email: `${role}@example.com`,
-          role,
-        },
-        isAuthenticated: true,
-        isLoading: false,
-        login: vi.fn(),
-        logout: vi.fn(),
-        refreshSession: vi.fn(),
-      })
+      useAuthMock.mockReturnValue(createAuthenticatedUser(role))
 
       render(<App />)
 
@@ -341,17 +347,17 @@ describe('CampusConnect application', () => {
     {
       role: 'student',
       path: '/faculty-course-management',
-      expectedHeading: 'Your campus, connected.',
+      expectedHeading: 'At a glance',
     },
     {
       role: 'faculty',
       path: '/departments',
-      expectedHeading: 'Your campus, connected.',
+      expectedHeading: 'At a glance',
     },
     {
       role: 'coordinator',
       path: '/grades',
-      expectedHeading: 'Your campus, connected.',
+      expectedHeading: 'At a glance',
     },
     {
       role: 'student',
@@ -378,19 +384,7 @@ describe('CampusConnect application', () => {
   it.each(directRouteExpectations)(
     '$role accessing $path receives the correct route access',
     ({ role, path, expectedHeading }) => {
-      useAuthMock.mockReturnValue({
-        user: {
-          id: `${role}-1`,
-          name: `Test ${role}`,
-          email: `${role}@example.com`,
-          role,
-        },
-        isAuthenticated: true,
-        isLoading: false,
-        login: vi.fn(),
-        logout: vi.fn(),
-        refreshSession: vi.fn(),
-      })
+      useAuthMock.mockReturnValue(createAuthenticatedUser(role))
 
       window.history.replaceState({}, '', path)
 
@@ -407,6 +401,7 @@ describe('CampusConnect application', () => {
   it('redirects an unauthenticated user from a protected management route', () => {
     useAuthMock.mockReturnValue({
       user: null,
+      accessToken: null,
       isAuthenticated: false,
       isLoading: false,
       login: vi.fn(),
@@ -414,7 +409,11 @@ describe('CampusConnect application', () => {
       refreshSession: vi.fn(),
     })
 
-    window.history.replaceState({}, '', '/faculty-course-management')
+    window.history.replaceState(
+      {},
+      '',
+      '/faculty-course-management',
+    )
 
     render(<App />)
 

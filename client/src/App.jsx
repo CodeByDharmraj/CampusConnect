@@ -34,7 +34,7 @@ import { queryClient } from './lib/queryClient'
 import { useAuth } from './context/useAuth'
 
 import PlaceholderPage from './pages/PlaceholderPage'
-import DashboardPrototypePage from './pages/DashboardPrototypePage'
+import DashboardPage from './pages/DashboardPage'
 import LoginFormPage from './pages/LoginFormPage'
 import AnnouncementFormPage from './pages/AnnouncementFormPage'
 import ProtectedRoute from './routes/ProtectedRoute.jsx'
@@ -46,6 +46,7 @@ import TimetablePage from './pages/TimetablePage.jsx'
 import FacultyCourseManagementPage from './pages/FacultyCourseManagementPage.jsx'
 import FacultyManagementPage from './pages/FacultyManagementPage.jsx'
 import AssignmentManagementPage from './pages/AssignmentManagementPage.jsx'
+
 
 import {
   navigationPermissions,
@@ -185,9 +186,6 @@ const placeholderPages = [
   },
 ]
 
-function DashboardPage() {
-  return <DashboardPrototypePage />
-}
 
 function NotFoundPage() {
   return (
