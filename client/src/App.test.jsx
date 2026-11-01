@@ -1,5 +1,4 @@
-﻿
-import {
+﻿import {
   cleanup,
   fireEvent,
   render,
@@ -129,13 +128,9 @@ describe('CampusConnect application', () => {
       }),
     ).toBeInTheDocument()
 
-    expect(
-      screen.getByLabelText('College email'),
-    ).toBeInTheDocument()
+    expect(screen.getByLabelText('College email')).toBeInTheDocument()
 
-    expect(
-      screen.getByLabelText('Password'),
-    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Password')).toBeInTheDocument()
   })
 
   it('shows a loading state while restoring the session', () => {
@@ -151,11 +146,10 @@ describe('CampusConnect application', () => {
 
     render(<App />)
 
-    expect(
-      screen.getByRole('status'),
-    ).toHaveTextContent('Checking your session...')
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Checking your session...',
+    )
   })
-
 
   it('shows the authenticated user profile', () => {
     useAuthMock.mockReturnValue({
@@ -188,9 +182,7 @@ describe('CampusConnect application', () => {
       within(profileMenu).getByText('admin@example.com'),
     ).toBeInTheDocument()
 
-    expect(
-      within(profileMenu).getByText('admin'),
-    ).toBeInTheDocument()
+    expect(within(profileMenu).getByText('admin')).toBeInTheDocument()
 
     expect(
       within(profileMenu).getByRole('menuitem', {
@@ -198,7 +190,6 @@ describe('CampusConnect application', () => {
       }),
     ).toBeInTheDocument()
   })
-  
 
   it('calls the logout function when the user clicks Logout', () => {
     const logoutMock = vi.fn().mockResolvedValue(undefined)
@@ -409,11 +400,7 @@ describe('CampusConnect application', () => {
       refreshSession: vi.fn(),
     })
 
-    window.history.replaceState(
-      {},
-      '',
-      '/faculty-course-management',
-    )
+    window.history.replaceState({}, '', '/faculty-course-management')
 
     render(<App />)
 

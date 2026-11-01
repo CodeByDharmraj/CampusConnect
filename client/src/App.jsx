@@ -46,7 +46,10 @@ import TimetablePage from './pages/TimetablePage.jsx'
 import FacultyCourseManagementPage from './pages/FacultyCourseManagementPage.jsx'
 import FacultyManagementPage from './pages/FacultyManagementPage.jsx'
 import AssignmentManagementPage from './pages/AssignmentManagementPage.jsx'
-
+import AttendancePage from './pages/AttendancePage.jsx'
+import StudentSubmissionsPage from './pages/StudentSubmissionsPage.jsx'
+import FacultySubmissionsPage from './pages/FacultySubmissionsPage.jsx'
+import SubmissionOversightPage from './pages/SubmissionOversightPage'
 
 import {
   navigationPermissions,
@@ -155,11 +158,6 @@ const placeholderPages = [
     description: 'Review assignment instructions, deadlines, and submissions.',
   },
   {
-    path: '/attendance',
-    title: 'Attendance',
-    description: 'View attendance records within your authorized scope.',
-  },
-  {
     path: '/clubs-events',
     title: 'Clubs & Events',
     description: 'Explore campus clubs, activities, and upcoming events.',
@@ -168,11 +166,6 @@ const placeholderPages = [
     path: '/grades',
     title: 'Grades & Feedback',
     description: 'View grades and academic feedback.',
-  },
-  {
-    path: '/submissions',
-    title: 'Submissions',
-    description: 'Review and evaluate authorized student submissions.',
   },
   {
     path: '/departments',
@@ -185,7 +178,6 @@ const placeholderPages = [
     description: 'Manage institution-wide configuration.',
   },
 ]
-
 
 function NotFoundPage() {
   return (
@@ -237,10 +229,9 @@ function AppLayout() {
   }, [isDark])
 
   const navClass = ({ isActive }) =>
-    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-      isActive
-        ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
-        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
+    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${isActive
+      ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
     }`
 
   const sidebar = (
@@ -394,9 +385,8 @@ function AppLayout() {
 
                     <ChevronDown
                       size={16}
-                      className={`text-slate-500 transition-transform ${
-                        profileMenuOpen ? 'rotate-180' : ''
-                      }`}
+                      className={`text-slate-500 transition-transform ${profileMenuOpen ? 'rotate-180' : ''
+                        }`}
                       aria-hidden="true"
                     />
                   </button>
@@ -519,6 +509,37 @@ function AppLayout() {
 
               <Route path="/announcements" element={<AnnouncementFormPage />} />
 
+
+              <Route
+                element={
+                  <ProtectedRoute
+                    allowedRoles={navigationPermissions.attendance}
+                  />
+                }
+              >
+                <Route path="/attendance" element={<AttendancePage />} />
+              </Route>
+              <Route
+                element={
+                  <ProtectedRoute
+                    allowedRoles={navigationPermissions.submissions}
+                  />
+                }
+              >
+                <Route
+                  path="/submissions"
+                  element={
+                    user?.role === 'student' ? (
+                      <StudentSubmissionsPage />
+                    ) : user?.role === 'faculty' ? (
+                      <FacultySubmissionsPage />
+                    ) : (
+                      <SubmissionOversightPage />
+                    )
+                  }
+                />
+              </Route>
+
               {placeholderPages.map((page) => {
                 const permission = navigation.find(
                   (item) => item.path === page.path,
@@ -553,6 +574,7 @@ function AppLayout() {
                   />
                 }
               >
+
                 <Route
                   path="/clubs-events"
                   element={

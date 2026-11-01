@@ -18,7 +18,7 @@ export const navigationPermissions = {
   announcements: ALL_ROLES,
   clubsEvents: ALL_ROLES,
   grades: [ROLES.STUDENT, ROLES.FACULTY, ROLES.ADMIN],
-  submissions: [ROLES.FACULTY, ROLES.COORDINATOR, ROLES.ADMIN],
+  submissions: ALL_ROLES,
   facultyCourseManagement: [ROLES.COORDINATOR, ROLES.ADMIN],
   departmentManagement: [ROLES.ADMIN],
   facultyManagement: [ROLES.ADMIN],

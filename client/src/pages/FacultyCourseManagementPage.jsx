@@ -46,7 +46,7 @@ export default function FacultyCourseManagementPage() {
     },
     enabled: Boolean(accessToken),
   })
-    
+
   const assignmentsQuery = useQuery({
     queryKey: ['faculty-assignments', selectedOfferingId, accessToken],
     queryFn: async () => {

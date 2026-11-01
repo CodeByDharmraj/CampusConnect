@@ -12,6 +12,10 @@ const enrollmentRoutes = require('./routes/enrollmentRoutes')
 const departmentRoutes = require('./routes/departmentRoutes')
 const timetableRoutes = require('./routes/timetableRoutes')
 const assignmentRoutes = require('./routes/assignmentRoutes')
+const announcementRoutes = require('./routes/announcementRoutes')
+const attendanceRoutes = require('./routes/attendanceRoutes')
+const submissionRoutes = require('./routes/submissionRoutes')
+const attendanceFacultyRoutes = require('./routes/attendanceFacultyRoutes')
 
 // Creates the Express application.
 const app = express()
@@ -66,6 +70,17 @@ app.use('/api/v1/timetable', timetableRoutes)
 
 // Assignment creation, publication and role-scoped visibility.
 app.use('/api/v1/assignments', assignmentRoutes)
+
+// Role-scoped announcement publishing and reading.
+app.use('/api/v1/announcements', announcementRoutes)
+
+// Role-scoped attendance sessions, records and correction requests.
+app.use('/api/v1/attendance', attendanceRoutes)
+
+// Student submissions, faculty evaluation and secure file downloads.
+app.use('/api/v1/submissions', submissionRoutes)
+
+app.use('/api/v1/attendance/faculty', attendanceFacultyRoutes)
 
 // Unknown routes must be handled after all registered routes.
 app.use(notFound)

@@ -1,116 +1,305 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AnnouncementFormPage from './AnnouncementFormPage.jsx'
 
-const { useAuthMock } = vi.hoisted(() => ({
+const { useAuthMock, apiClientMock } = vi.hoisted(() => ({
   useAuthMock: vi.fn(),
+  apiClientMock: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+  },
 }))
 
 vi.mock('../context/useAuth', () => ({
   useAuth: useAuthMock,
 }))
 
-function renderPage(user) {
-  useAuthMock.mockReturnValue({ user })
+vi.mock('../lib/apiClient', () => ({
+  apiClient: apiClientMock,
+}))
 
-  return render(
-    <MemoryRouter>
-      <AnnouncementFormPage />
-    </MemoryRouter>,
-  )
+const mockAnnouncements = [
+  {
+    _id: 'announcement-1',
+    title: 'Database assessment update',
+    detail: 'The database assessment will take place next Monday.',
+    category: 'Academic',
+    scope: 'institution',
+    publishedAt: '2026-11-01T10:00:00.000Z',
+    expiresAt: null,
+    authorId: {
+      name: 'Test Administrator',
+    },
+    isRead: false,
+  },
+]
+
+const mockCourseOfferings = [
+  {
+    _id: 'offering-1',
+    academicYear: '2026-2027',
+    semester: 5,
+    section: 'A',
+    courseId: {
+      code: 'CSE301',
+      name: 'Database Management Systems',
+    },
+  },
+]
+
+function mockApiResponses({
+  announcements = mockAnnouncements,
+  courseOfferings = mockCourseOfferings,
+} = {}) {
+  apiClientMock.get.mockImplementation((url) => {
+    if (url === '/announcements') {
+      return Promise.resolve({
+        data: {
+          success: true,
+          data: {
+            announcements,
+          },
+        },
+      })
+    }
+
+    if (url === '/announcements/options') {
+      return Promise.resolve({
+        data: {
+          success: true,
+          data: {
+            courseOfferings,
+          },
+        },
+      })
+    }
+
+    return Promise.reject(new Error(`Unexpected GET request: ${url}`))
+  })
+
+  apiClientMock.post.mockResolvedValue({
+    data: {
+      success: true,
+      data: {
+        announcement: {
+          _id: 'new-announcement',
+        },
+      },
+    },
+  })
+
+  apiClientMock.patch.mockResolvedValue({
+    data: {
+      success: true,
+      message: 'Announcement marked as read.',
+    },
+  })
 }
 
-afterEach(() => {
-  cleanup()
+function renderPage(user, options = {}) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  })
+
+  useAuthMock.mockReturnValue({
+    user,
+    accessToken: 'test-access-token',
+  })
+
+  mockApiResponses(options)
+
+  const result = render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <AnnouncementFormPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+
+  return {
+    ...result,
+    queryClient,
+  }
+}
+
+beforeEach(() => {
   vi.clearAllMocks()
 })
 
+afterEach(() => {
+  cleanup()
+})
+
 describe('AnnouncementFormPage', () => {
-  it('allows students to read announcements without a publishing form', () => {
+  it('allows students to read announcements without a publishing form', async () => {
     renderPage({
-      id: 'student-1',
+      _id: 'student-1',
       name: 'Test Student',
       role: 'student',
     })
 
     expect(
-      screen.getByRole('heading', { name: 'Read-only announcement access' }),
+      await screen.findByRole('heading', {
+        name: 'Announcements',
+      }),
     ).toBeInTheDocument()
 
     expect(
-      screen.getByText('Review the upcoming assessment schedule'),
+      await screen.findByText('Database assessment update'),
     ).toBeInTheDocument()
 
     expect(
-      screen.queryByRole('button', { name: /Add.*announcement to preview/ }),
+      screen.queryByRole('heading', {
+        name: 'Publish announcement',
+      }),
     ).not.toBeInTheDocument()
+
+    expect(
+      screen.getByRole('button', {
+        name: 'Mark as read',
+      }),
+    ).toBeInTheDocument()
   })
 
-  it('shows course-scoped preview publishing to faculty', () => {
+  it('marks a student announcement as read', async () => {
     renderPage({
-      id: 'faculty-1',
+      _id: 'student-1',
+      name: 'Test Student',
+      role: 'student',
+    })
+
+    const markReadButton = await screen.findByRole('button', {
+      name: 'Mark as read',
+    })
+
+    fireEvent.click(markReadButton)
+
+    await waitFor(() => {
+      expect(apiClientMock.patch).toHaveBeenCalledWith(
+        '/announcements/announcement-1/read',
+        {},
+        {
+          headers: {
+            Authorization: 'Bearer test-access-token',
+          },
+        },
+      )
+    })
+  })
+
+  it('shows assigned course offerings to faculty', async () => {
+    renderPage({
+      _id: 'faculty-1',
       name: 'Test Faculty',
       role: 'faculty',
     })
 
     expect(
-      screen.getByRole('heading', { name: 'Create a course announcement' }),
+      await screen.findByRole('heading', {
+        name: 'Publish announcement',
+      }),
     ).toBeInTheDocument()
 
     expect(
-      screen.getByText(
-        /Only courses assigned to the authenticated faculty member/,
-      ),
+      await screen.findByRole('option', {
+        name: /CSE301.*Database Management Systems/,
+      }),
     ).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('Course reference'), {
-      target: { value: 'CSE301' },
+    expect(
+      screen.getByLabelText('Assigned course offering'),
+    ).toBeInTheDocument()
+  })
+
+  it('publishes a course-scoped announcement as faculty', async () => {
+    renderPage({
+      _id: 'faculty-1',
+      name: 'Test Faculty',
+      role: 'faculty',
+    })
+
+    await screen.findByRole('option', {
+      name: /CSE301.*Database Management Systems/,
+    })
+
+    fireEvent.change(screen.getByLabelText('Assigned course offering'), {
+      target: {
+        value: 'offering-1',
+      },
     })
 
     fireEvent.change(screen.getByLabelText('Title'), {
-      target: { value: 'Database assessment update' },
+      target: {
+        value: 'Database assessment update',
+      },
     })
 
     fireEvent.change(screen.getByLabelText('Details'), {
-      target: { value: 'Please review the upcoming database assessment.' },
+      target: {
+        value: 'Please review the upcoming database assessment.',
+      },
     })
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Add course announcement to preview',
+        name: 'Publish announcement',
       }),
     )
 
-    expect(screen.getByText('Database assessment update')).toBeInTheDocument()
-    expect(screen.getByText('Preview target: CSE301')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(apiClientMock.post).toHaveBeenCalledWith(
+        '/announcements',
+        {
+          title: 'Database assessment update',
+          detail: 'Please review the upcoming database assessment.',
+          category: 'Academic',
+          courseOfferingId: 'offering-1',
+        },
+        {
+          headers: {
+            Authorization: 'Bearer test-access-token',
+          },
+        },
+      )
+    })
 
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Nothing was published or saved to the database.',
-    )
+    expect(
+      await screen.findByText('Announcement published successfully.'),
+    ).toBeInTheDocument()
   })
 
-  it('shows department-scoped preview publishing to coordinators', () => {
+  it('publishes a department announcement as a coordinator', async () => {
     renderPage({
-      id: 'coordinator-1',
+      _id: 'coordinator-1',
       name: 'Test Coordinator',
       role: 'coordinator',
       departmentId: 'department-123',
     })
 
-    expect(
-      screen.getByRole('heading', {
-        name: 'Create a department announcement',
-      }),
-    ).toBeInTheDocument()
-
-    expect(
-      screen.getByText('Department reference: department-123'),
-    ).toBeInTheDocument()
+    await screen.findByText('Database assessment update')
 
     fireEvent.change(screen.getByLabelText('Title'), {
-      target: { value: 'Department meeting update' },
+      target: {
+        value: 'Department meeting update',
+      },
     })
 
     fireEvent.change(screen.getByLabelText('Details'), {
@@ -121,36 +310,40 @@ describe('AnnouncementFormPage', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Add department announcement to preview',
+        name: 'Publish announcement',
       }),
     )
 
-    expect(screen.getByText('Department meeting update')).toBeInTheDocument()
-
-    expect(
-      screen.getByText('Preview target: department-123'),
-    ).toBeInTheDocument()
+    await waitFor(() => {
+      expect(apiClientMock.post).toHaveBeenCalledWith(
+        '/announcements',
+        {
+          title: 'Department meeting update',
+          detail: 'The department meeting will take place tomorrow.',
+          category: 'Academic',
+        },
+        {
+          headers: {
+            Authorization: 'Bearer test-access-token',
+          },
+        },
+      )
+    })
   })
 
-  it('shows institution-wide preview publishing to administrators', () => {
+  it('publishes an institution-wide announcement as an administrator', async () => {
     renderPage({
-      id: 'admin-1',
+      _id: 'admin-1',
       name: 'Test Administrator',
       role: 'admin',
     })
 
-    expect(
-      screen.getByRole('heading', {
-        name: 'Create an institution-wide announcement',
-      }),
-    ).toBeInTheDocument()
-
-    expect(
-      screen.getByText('Intended audience: Entire institution'),
-    ).toBeInTheDocument()
+    await screen.findByText('Database assessment update')
 
     fireEvent.change(screen.getByLabelText('Title'), {
-      target: { value: 'Campus-wide update' },
+      target: {
+        value: 'Campus-wide update',
+      },
     })
 
     fireEvent.change(screen.getByLabelText('Details'), {
@@ -161,72 +354,236 @@ describe('AnnouncementFormPage', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Add institution announcement to preview',
+        name: 'Publish announcement',
       }),
     )
 
-    expect(screen.getByText('Campus-wide update')).toBeInTheDocument()
-
-    expect(
-      screen.getByText('Preview target: Entire institution'),
-    ).toBeInTheDocument()
+    await waitFor(() => {
+      expect(apiClientMock.post).toHaveBeenCalledWith(
+        '/announcements',
+        {
+          title: 'Campus-wide update',
+          detail: 'Important information for the entire institution.',
+          category: 'Academic',
+        },
+        {
+          headers: {
+            Authorization: 'Bearer test-access-token',
+          },
+        },
+      )
+    })
   })
 
-  it('validates required announcement fields', () => {
+  it('validates announcement title length', async () => {
     renderPage({
-      id: 'admin-1',
+      _id: 'admin-1',
       name: 'Test Administrator',
       role: 'admin',
     })
 
+    await screen.findByText('Database assessment update')
+
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: {
+        value: 'Hi',
+      },
+    })
+
+    fireEvent.change(screen.getByLabelText('Details'), {
+      target: {
+        value: 'This is a valid announcement detail.',
+      },
+    })
+
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Add institution announcement to preview',
+        name: 'Publish announcement',
       }),
     )
 
-    expect(screen.getByText('Enter an announcement title.')).toBeInTheDocument()
-
     expect(
-      screen.getByText('Enter the announcement details.'),
+      await screen.findByText('Title must contain at least 5 characters.'),
     ).toBeInTheDocument()
+
+    expect(apiClientMock.post).not.toHaveBeenCalled()
   })
 
-  it('requires a course reference in the faculty prototype', () => {
+  it('validates announcement details length', async () => {
     renderPage({
-      id: 'faculty-1',
+      _id: 'admin-1',
+      name: 'Test Administrator',
+      role: 'admin',
+    })
+
+    await screen.findByText('Database assessment update')
+
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: {
+        value: 'Valid announcement title',
+      },
+    })
+
+    fireEvent.change(screen.getByLabelText('Details'), {
+      target: {
+        value: 'Short',
+      },
+    })
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Publish announcement',
+      }),
+    )
+
+    expect(
+      await screen.findByText('Details must contain at least 10 characters.'),
+    ).toBeInTheDocument()
+
+    expect(apiClientMock.post).not.toHaveBeenCalled()
+  })
+
+  it('requires faculty to select an assigned course offering', async () => {
+    renderPage({
+      _id: 'faculty-1',
       name: 'Test Faculty',
       role: 'faculty',
     })
 
+    await screen.findByRole('option', {
+      name: /CSE301.*Database Management Systems/,
+    })
+
     fireEvent.change(screen.getByLabelText('Title'), {
-      target: { value: 'Course announcement' },
+      target: {
+        value: 'Course announcement',
+      },
     })
 
     fireEvent.change(screen.getByLabelText('Details'), {
-      target: { value: 'Please read this course announcement.' },
+      target: {
+        value: 'Please read this course announcement.',
+      },
     })
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Add course announcement to preview',
+        name: 'Publish announcement',
       }),
     )
 
     expect(
-      screen.getByText('Enter a course reference for this prototype preview.'),
+      await screen.findByText('Select one of your assigned course offerings.'),
     ).toBeInTheDocument()
+
+    expect(apiClientMock.post).not.toHaveBeenCalled()
   })
 
-  it('does not expose a publishing form to an unknown role', () => {
+  it('does not expose publishing controls to students', async () => {
     renderPage({
-      id: 'unknown-1',
+      _id: 'student-1',
+      name: 'Test Student',
+      role: 'student',
+    })
+
+    await screen.findByText('Database assessment update')
+
+    expect(
+      screen.queryByRole('button', {
+        name: 'Publish announcement',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not expose publishing controls to unknown roles', async () => {
+    renderPage({
+      _id: 'unknown-1',
       name: 'Unknown User',
       role: 'unknown',
     })
 
+    await screen.findByText('Database assessment update')
+
     expect(
-      screen.queryByRole('button', { name: /Add.*announcement to preview/ }),
+      screen.queryByRole('button', {
+        name: 'Publish announcement',
+      }),
     ).not.toBeInTheDocument()
+  })
+
+  it('displays an error when announcements cannot be loaded', async () => {
+    useAuthMock.mockReturnValue({
+      user: {
+        _id: 'student-1',
+        name: 'Test Student',
+        role: 'student',
+      },
+      accessToken: 'test-access-token',
+    })
+
+    apiClientMock.get.mockRejectedValue(new Error('Network unavailable'))
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          gcTime: 0,
+        },
+      },
+    })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AnnouncementFormPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(
+      await screen.findByText('Unable to load announcements.'),
+    ).toBeInTheDocument()
+  })
+
+  it('displays a publishing error returned by the API', async () => {
+    apiClientMock.post.mockRejectedValue({
+      response: {
+        data: {
+          message: 'You are not authorized to publish this announcement.',
+        },
+      },
+    })
+
+    renderPage({
+      _id: 'admin-1',
+      name: 'Test Administrator',
+      role: 'admin',
+    })
+
+    await screen.findByText('Database assessment update')
+
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: {
+        value: 'Valid announcement title',
+      },
+    })
+
+    fireEvent.change(screen.getByLabelText('Details'), {
+      target: {
+        value: 'This is a valid announcement description.',
+      },
+    })
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Publish announcement',
+      }),
+    )
+
+    expect(
+      await screen.findByText(
+        'You are not authorized to publish this announcement.',
+      ),
+    ).toBeInTheDocument()
   })
 })

@@ -22,6 +22,51 @@ const COOKIE_SAME_SITE = (
   process.env.COOKIE_SAME_SITE || (COOKIE_SECURE ? 'none' : 'lax')
 ).toLowerCase()
 
+// Cloudflare R2 configuration.
+// R2 remains optional until the submission-storage feature is configured.
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || ''
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID || ''
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || ''
+const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || ''
+const R2_ENDPOINT = process.env.R2_ENDPOINT || ''
+
+const r2Values = [
+  R2_ACCOUNT_ID,
+  R2_ACCESS_KEY_ID,
+  R2_SECRET_ACCESS_KEY,
+  R2_BUCKET_NAME,
+  R2_ENDPOINT,
+]
+
+const hasAnyR2Value = r2Values.some((value) => value.trim() !== '')
+const hasCompleteR2Configuration = r2Values.every(
+  (value) => value.trim() !== '',
+)
+
+if (hasAnyR2Value && !hasCompleteR2Configuration) {
+  throw new Error(
+    'R2 configuration is incomplete. Configure all five R2 environment variables.',
+  )
+}
+
+if (hasCompleteR2Configuration) {
+  let endpoint
+
+  try {
+    endpoint = new URL(R2_ENDPOINT)
+  } catch {
+    throw new Error('R2_ENDPOINT must be a valid URL.')
+  }
+
+  if (endpoint.protocol !== 'https:') {
+    throw new Error('R2_ENDPOINT must use HTTPS.')
+  }
+
+  if (!R2_BUCKET_NAME.trim()) {
+    throw new Error('R2_BUCKET_NAME cannot be empty.')
+  }
+}
+
 // Validate the application environment.
 const validEnvironments = ['development', 'test', 'production']
 
@@ -79,6 +124,13 @@ const env = Object.freeze({
   REFRESH_TOKEN_SECRET,
   COOKIE_SECURE,
   COOKIE_SAME_SITE,
+
+  R2_ENABLED: hasCompleteR2Configuration,
+  R2_ACCOUNT_ID,
+  R2_ACCESS_KEY_ID,
+  R2_SECRET_ACCESS_KEY,
+  R2_BUCKET_NAME,
+  R2_ENDPOINT,
 })
 
 module.exports = env
