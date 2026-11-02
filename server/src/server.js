@@ -1,4 +1,4 @@
-﻿const http = require('node:http')
+const http = require('node:http')
 const app = require('./app')
 const env = require('./config/env')
 const { connectDatabase, disconnectDatabase } = require('./config/database')
@@ -12,6 +12,12 @@ async function startServer() {
   await initializeAcademicIndexes()
 
   const server = http.createServer(app)
+
+  // Bound slow-client resource usage while allowing normal API requests.
+  server.requestTimeout = 30_000
+  server.headersTimeout = 15_000
+  server.keepAliveTimeout = 5_000
+  server.maxRequestsPerSocket = 1000
 
   // Wait until the HTTP server is listening or startup fails.
   await new Promise((resolve, reject) => {
@@ -35,6 +41,17 @@ async function startServer() {
     isShuttingDown = true
     console.log(`Received ${signal}; shutting down gracefully`)
 
+    const forceCloseTimer = setTimeout(() => {
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          message: 'Graceful shutdown timed out; closing remaining connections',
+        }),
+      )
+      server.closeAllConnections()
+    }, 10_000)
+    forceCloseTimer.unref()
+
     try {
       await new Promise((resolve, reject) => {
         server.close((error) => {
@@ -44,6 +61,8 @@ async function startServer() {
             resolve()
           }
         })
+        // Do not wait for idle keep-alive sockets to expire naturally.
+        server.closeIdleConnections()
       })
     } catch (error) {
       console.error(
@@ -55,6 +74,7 @@ async function startServer() {
       )
       process.exitCode = 1
     } finally {
+      clearTimeout(forceCloseTimer)
       try {
         await disconnectDatabase()
       } catch (error) {

@@ -5,12 +5,12 @@ const FacultyCourse = require('../models/FacultyCourse')
 const CourseOfferingReactivationRequest = require('../models/CourseOfferingReactivationRequest')
 const TimetableEntry = require('../models/TimetableEntry')
 const Assignment = require('../models/Assignment')
+const Submission = require('../models/Submission')
 const Announcement = require('../models/Announcement')
 const AnnouncementRead = require('../models/AnnouncementRead')
 const AttendanceSession = require('../models/AttendanceSession')
 const AttendanceRecord = require('../models/AttendanceRecord')
 const AttendanceCorrectionRequest = require('../models/AttendanceCorrectionRequest')
-const Submission = require('../models/Submission')
 
 const academicModels = [
   Course,

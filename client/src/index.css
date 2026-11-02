@@ -74,11 +74,6 @@ a {
   min-height: 100vh;
 }
 
-:focus-visible {
-  outline: 3px solid #60a5fa;
-  outline-offset: 3px;
-}
-
 ::selection {
   color: #ffffff;
   background: #1d4ed8;
@@ -91,4 +86,64 @@ html {
 
 html.dark {
   color-scheme: dark;
+}
+
+
+/* Phase 54: accessible focus, motion, and narrow-viewport foundations. */
+html {
+  scroll-padding-top: 5rem;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body,
+#root {
+  min-width: 320px;
+  max-width: 100%;
+}
+
+main {
+  min-width: 0;
+}
+
+:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}
+
+button,
+input,
+textarea,
+select {
+  accent-color: #2563eb;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 3px;
+  }
+
+  a,
+  button {
+    forced-color-adjust: auto;
+  }
+}
+
+/* Avoid intrinsic media dimensions forcing horizontal scrolling. */
+img,
+video,
+canvas {
+  max-width: 100%;
 }

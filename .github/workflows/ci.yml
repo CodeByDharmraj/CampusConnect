@@ -1,0 +1,81 @@
+name: CampusConnect CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: campusconnect-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.ENABLE_CI == 'true' }}
+    name: Backend lint and regression tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Lint backend
+        run: npm run lint
+
+      - name: Run backend regression suite
+        run: npm run test:regression
+        env:
+          NODE_ENV: test
+
+  client:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.ENABLE_CI == 'true' }}
+    name: Frontend lint, tests, and production build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Run frontend unit and regression tests
+        run: npm test
+
+      - name: Build production frontend
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: https://campusconnect-api-k6do.onrender.com/api/v1
+
+      - name: Enforce compressed asset budgets
+        run: npm run budget
+

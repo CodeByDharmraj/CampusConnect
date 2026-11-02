@@ -1,8 +1,10 @@
 ﻿const express = require('express')
+const mongoose = require('mongoose')
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const env = require('./config/env')
 const requestLogger = require('./middleware/requestLogger')
+const securityHeaders = require('./middleware/securityHeaders')
 const notFound = require('./middleware/notFound')
 const errorHandler = require('./middleware/errorHandler')
 const authRoutes = require('./routes/authRoutes')
@@ -16,76 +18,89 @@ const announcementRoutes = require('./routes/announcementRoutes')
 const attendanceRoutes = require('./routes/attendanceRoutes')
 const submissionRoutes = require('./routes/submissionRoutes')
 const attendanceFacultyRoutes = require('./routes/attendanceFacultyRoutes')
+const attendanceSessionRoutes = require('./routes/attendanceSessionRoutes')
+const courseMaterialRoutes = require('./routes/courseMaterialRoutes')
+const clubRoutes = require('./routes/clubRoutes')
+const eventRoutes = require('./routes/eventRoutes')
+const dashboardRoutes = require('./routes/dashboardRoutes')
 
-// Creates the Express application.
 const app = express()
 
-// Logs request metadata without recording secrets or request bodies.
+// Avoid disclosing the framework in response headers.
+app.disable('x-powered-by')
+
+// Trust only the explicitly configured number of reverse-proxy hops.
+app.set('trust proxy', env.TRUST_PROXY_HOPS)
+
+app.use(securityHeaders)
 app.use(requestLogger)
 
-// Allows requests only from the configured frontend origin.
 app.use(
   cors({
-    origin: env.CLIENT_ORIGIN,
+    origin: (origin, callback) => {
+      callback(null, origin === env.CLIENT_ORIGIN)
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 600,
   }),
 )
 
-// Allows Express to read JSON sent in request bodies.
-app.use(express.json({ limit: '10kb' }))
-
-// Parses cookies so authentication routes can read refresh tokens.
+app.use(express.json({ limit: '10kb', strict: true }))
 app.use(cookieParser())
 
-// Public endpoint used to check whether the API is working.
-app.get('/api/v1/health', (req, res) => {
+// Liveness answers whether this process is alive; it does not depend on MongoDB.
+app.get('/api/v1/health/live', (_req, res) => {
   res.status(200).json({
     success: true,
-    message: 'CampusConnect API is running',
+    data: { status: 'alive' },
+  })
+})
+
+// Readiness is used by deployment platforms before routing production traffic.
+app.get('/api/v1/health/ready', (_req, res) => {
+  const databaseReady = mongoose.connection.readyState === 1
+
+  return res.status(databaseReady ? 200 : 503).json({
+    success: databaseReady,
     data: {
-      status: 'ok',
+      status: databaseReady ? 'ready' : 'not_ready',
+      dependencies: {
+        database: databaseReady ? 'connected' : 'unavailable',
+      },
     },
   })
 })
 
-// Authentication endpoints.
+// Preserve the original health contract for existing monitors and tests.
+// New deployment health checks should use /health/ready.
+app.get('/api/v1/health', (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'CampusConnect API is running',
+    data: { status: 'ok' },
+  })
+})
+
 app.use('/api/v1/auth', authRoutes)
-
-// Course management and visibility endpoints.
+app.use('/api/v1/dashboard', dashboardRoutes)
 app.use('/api/v1/courses', courseRoutes)
-
-// Faculty assignment management for course offerings.
 app.use('/api/v1/course-offerings', courseOfferingRoutes)
-
-// Administrator-only student enrollment management.
 app.use('/api/v1/enrollments', enrollmentRoutes)
-
-// Department management endpoints.
 app.use('/api/v1/departments', departmentRoutes)
-
-// Timetable management and role-scoped timetable visibility.
 app.use('/api/v1/timetable', timetableRoutes)
-
-// Assignment creation, publication and role-scoped visibility.
 app.use('/api/v1/assignments', assignmentRoutes)
-
-// Role-scoped announcement publishing and reading.
 app.use('/api/v1/announcements', announcementRoutes)
-
-// Role-scoped attendance sessions, records and correction requests.
 app.use('/api/v1/attendance', attendanceRoutes)
-
-// Student submissions, faculty evaluation and secure file downloads.
 app.use('/api/v1/submissions', submissionRoutes)
-
+app.use('/api/v1/course-materials', courseMaterialRoutes)
+app.use('/api/v1/clubs', clubRoutes)
+app.use('/api/v1/events', eventRoutes)
 app.use('/api/v1/attendance/faculty', attendanceFacultyRoutes)
+app.use('/api/v1/attendance-sessions', attendanceSessionRoutes)
 
-// Unknown routes must be handled after all registered routes.
 app.use(notFound)
-
-// Error handler must be registered after routes and 404 middleware.
 app.use(errorHandler)
 
 module.exports = app

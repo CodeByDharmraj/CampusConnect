@@ -85,50 +85,108 @@ function validateUploadRequest(body) {
 function validateCompleteRequest(body) {
   requireObject(body)
 
-  rejectUnexpectedFields(body, [
+  const allowedFields = [
     'assignmentId',
+    'files',
+    // Backward compatibility for clients using the original single-file flow.
     'objectKey',
     'fileName',
     'contentType',
     'fileSize',
-  ])
+  ]
+  rejectUnexpectedFields(body, allowedFields)
 
   const assignmentId = validateObjectId(body.assignmentId, 'assignment')
+  let files
 
-  if (typeof body.objectKey !== 'string' || body.objectKey.length > 500) {
-    reject('A valid storage object key is required.')
+  if (Array.isArray(body.files)) {
+    if (body.files.length < 1 || body.files.length > 3) {
+      reject('Choose between 1 and 3 files for each submission.')
+    }
+
+    files = body.files.map((file, index) => {
+      if (
+        file === null ||
+        typeof file !== 'object' ||
+        Array.isArray(file) ||
+        Object.getPrototypeOf(file) !== Object.prototype
+      ) {
+        reject(`File ${index + 1} must be a valid object.`)
+      }
+
+      rejectUnexpectedFields(file, [
+        'objectKey',
+        'fileName',
+        'contentType',
+        'fileSize',
+      ])
+
+      if (typeof file.objectKey !== 'string' || file.objectKey.length > 500) {
+        reject(`A valid storage object key is required for file ${index + 1}.`)
+      }
+
+      if (
+        typeof file.fileName !== 'string' ||
+        !file.fileName.trim() ||
+        file.fileName.trim().length > 255
+      ) {
+        reject(`A valid file name is required for file ${index + 1}.`)
+      }
+
+      if (
+        typeof file.contentType !== 'string' ||
+        !ALLOWED_CONTENT_TYPES.has(file.contentType)
+      ) {
+        reject(`File ${index + 1} has an unsupported file type.`)
+      }
+
+      if (
+        !Number.isSafeInteger(file.fileSize) ||
+        file.fileSize < 1 ||
+        file.fileSize > 10 * 1024 * 1024
+      ) {
+        reject(`File ${index + 1} must be between 1 byte and 10 MB.`)
+      }
+
+      return {
+        objectKey: file.objectKey,
+        fileName: file.fileName.trim(),
+        contentType: file.contentType,
+        fileSize: file.fileSize,
+      }
+    })
+  } else {
+    // Normalize the previous single-file request into the new multipart shape.
+    if (
+      typeof body.objectKey !== 'string' ||
+      body.objectKey.length > 500 ||
+      typeof body.fileName !== 'string' ||
+      !body.fileName.trim() ||
+      body.fileName.trim().length > 255 ||
+      typeof body.contentType !== 'string' ||
+      !ALLOWED_CONTENT_TYPES.has(body.contentType) ||
+      !Number.isSafeInteger(body.fileSize) ||
+      body.fileSize < 1 ||
+      body.fileSize > 10 * 1024 * 1024
+    ) {
+      reject('A valid uploaded file is required.')
+    }
+
+    files = [{
+      objectKey: body.objectKey,
+      fileName: body.fileName.trim(),
+      contentType: body.contentType,
+      fileSize: body.fileSize,
+    }]
   }
 
-  if (
-    typeof body.fileName !== 'string' ||
-    !body.fileName.trim() ||
-    body.fileName.trim().length > 255
-  ) {
-    reject('A valid file name is required.')
+  const totalSize = files.reduce((total, file) => total + file.fileSize, 0)
+
+  if (totalSize > 20 * 1024 * 1024) {
+    reject('The combined submission size cannot exceed 20 MB.')
   }
 
-  if (
-    typeof body.contentType !== 'string' ||
-    !ALLOWED_CONTENT_TYPES.has(body.contentType)
-  ) {
-    reject('This file type is not supported.')
-  }
-
-  if (
-    !Number.isSafeInteger(body.fileSize) ||
-    body.fileSize < 1 ||
-    body.fileSize > 10 * 1024 * 1024
-  ) {
-    reject('File size must be between 1 byte and 10 MB.')
-  }
-
-  return {
-    assignmentId,
-    objectKey: body.objectKey,
-    fileName: body.fileName.trim(),
-    contentType: body.contentType,
-    fileSize: body.fileSize,
-  }
+  return { assignmentId, files }
 }
 
 function validateAssignmentId(value) {

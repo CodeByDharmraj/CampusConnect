@@ -1,7 +1,6 @@
 const mongoose = require('mongoose')
 
 const AttendanceSession = require('../models/AttendanceSession')
-const AttendanceRecord = require('../models/AttendanceRecord')
 const CourseOffering = require('../models/CourseOffering')
 const FacultyCourse = require('../models/FacultyCourse')
 const Enrollment = require('../models/Enrollment')

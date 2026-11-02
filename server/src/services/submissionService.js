@@ -9,7 +9,6 @@ const ApiError = require('../utils/ApiError')
 const Course = require('../models/Course')
 const CourseOffering = require('../models/CourseOffering')
 
-const OBJECT_ID_PATTERN = /^[a-fA-F0-9]{24}$/
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -107,6 +106,7 @@ function validateObjectOwnership(objectKey, studentId, assignmentId) {
 function sanitizeFileName(fileName) {
   const normalized = fileName.replace(/\\/g, '/').split('/').pop()
 
+  // eslint-disable-next-line no-control-regex -- Remove control characters from untrusted filenames.
   const safeName = normalized.replace(/[\u0000-\u001f\u007f]/g, '').trim()
 
   if (!safeName || safeName.length > 255) {
@@ -121,8 +121,10 @@ function serializeSubmission(submission) {
 
   // Never expose private R2 object keys to the browser.
   for (const version of result.versions || []) {
-    if (version.file) {
-      delete version.file.objectKey
+    if (version.file) delete version.file.objectKey
+
+    for (const file of version.files || []) {
+      delete file.objectKey
     }
   }
 
@@ -159,77 +161,91 @@ async function completeSubmission(user, input) {
   // Recheck the deadline after the browser upload has completed.
   requireBeforeDeadline(assignment)
 
-  validateObjectOwnership(input.objectKey, user._id, assignment._id)
-
-  const fileName = sanitizeFileName(input.fileName)
-
-  const verifiedFile = await storageService.verifyUploadedObject({
-    objectKey: input.objectKey,
-    studentId: user._id,
-    assignmentId: assignment._id,
-    expectedContentType: input.contentType,
-    expectedFileSize: input.fileSize,
-  })
-
-  const submittedAt = new Date()
-  const mongoSession = await mongoose.startSession()
-
-  let savedSubmission
+  const verifiedFiles = []
+  const ownedObjectKeys = []
 
   try {
-    await mongoSession.withTransaction(async () => {
-      let submission = await Submission.findOne({
-        assignmentId: assignment._id,
+    for (const inputFile of input.files) {
+      validateObjectOwnership(inputFile.objectKey, user._id, assignment._id)
+      ownedObjectKeys.push(inputFile.objectKey)
+
+      const fileName = sanitizeFileName(inputFile.fileName)
+      const verifiedFile = await storageService.verifyUploadedObject({
+        objectKey: inputFile.objectKey,
         studentId: user._id,
-      }).session(mongoSession)
+        assignmentId: assignment._id,
+        expectedContentType: inputFile.contentType,
+        expectedFileSize: inputFile.fileSize,
+      })
 
-      const nextVersion = submission ? submission.currentVersion + 1 : 1
+      verifiedFiles.push({
+        objectKey: verifiedFile.objectKey,
+        originalName: fileName,
+        contentType: verifiedFile.contentType,
+        size: verifiedFile.fileSize,
+        etag: verifiedFile.etag,
+      })
+    }
 
-      const version = {
-        version: nextVersion,
-        file: {
-          objectKey: verifiedFile.objectKey,
-          originalName: fileName,
-          contentType: verifiedFile.contentType,
-          size: verifiedFile.fileSize,
-          etag: verifiedFile.etag,
-        },
-        submittedAt,
-        isLate: false,
-      }
+    const submittedAt = new Date()
+    const mongoSession = await mongoose.startSession()
+    let savedSubmission
 
-      if (!submission) {
-        submission = new Submission({
+    try {
+      await mongoSession.withTransaction(async () => {
+        let submission = await Submission.findOne({
           assignmentId: assignment._id,
           studentId: user._id,
-          versions: [version],
-          currentVersion: 1,
+        }).session(mongoSession)
+
+        const nextVersion = submission ? submission.currentVersion + 1 : 1
+        const version = {
+          version: nextVersion,
+          files: verifiedFiles,
+          // Keep the first file in the legacy field for older readers.
+          file: verifiedFiles[0],
           submittedAt,
           isLate: false,
-          status: 'submitted',
-        })
-      } else {
-        submission.versions.push(version)
-        submission.currentVersion = nextVersion
-        submission.submittedAt = submittedAt
-        submission.isLate = false
+        }
 
-        // A new version must be evaluated independently.
-        submission.status = 'submitted'
-        submission.grade = null
-        submission.feedback = ''
-        submission.evaluatedBy = null
-        submission.evaluatedAt = null
-      }
+        if (!submission) {
+          submission = new Submission({
+            assignmentId: assignment._id,
+            studentId: user._id,
+            versions: [version],
+            currentVersion: 1,
+            submittedAt,
+            isLate: false,
+            status: 'submitted',
+          })
+        } else {
+          submission.versions.push(version)
+          submission.currentVersion = nextVersion
+          submission.submittedAt = submittedAt
+          submission.isLate = false
+          submission.status = 'submitted'
+          submission.grade = null
+          submission.feedback = ''
+          submission.evaluatedBy = null
+          submission.evaluatedAt = null
+        }
 
-      await submission.save({ session: mongoSession })
-      savedSubmission = submission
-    })
-  } finally {
-    await mongoSession.endSession()
+        await submission.save({ session: mongoSession })
+        savedSubmission = submission
+      })
+    } finally {
+      await mongoSession.endSession()
+    }
+
+    return serializeSubmission(savedSubmission)
+  } catch (error) {
+    // Remove uploaded objects if validation or the database write fails.
+    await Promise.allSettled(
+      ownedObjectKeys.map((objectKey) => storageService.deleteObject(objectKey)),
+    )
+    throw error
   }
 
-  return serializeSubmission(savedSubmission)
 }
 
 async function getMySubmissions(user) {
@@ -327,7 +343,7 @@ async function evaluateSubmission(user, submissionId, input) {
   return serializeSubmission(submission)
 }
 
-async function createSubmissionDownloadUrl(user, submissionId) {
+async function createSubmissionDownloadUrl(user, submissionId, fileIndex = 0) {
   if (!user || !['student', 'faculty'].includes(user.role)) {
     throw new ApiError(403, 'You do not have permission.', 'FORBIDDEN')
   }
@@ -381,12 +397,24 @@ async function createSubmissionDownloadUrl(user, submissionId) {
     )
   }
 
+  const versionFiles = currentVersion.files?.length
+    ? currentVersion.files
+    : currentVersion.file
+      ? [currentVersion.file]
+      : []
+  const selectedFile = versionFiles[fileIndex]
+
+  if (!selectedFile) {
+    throw new ApiError(404, 'Submission file not found.', 'SUBMISSION_FILE_NOT_FOUND')
+  }
+
   const downloadUrl = await storageService.createDownloadUrl(
-    currentVersion.file.objectKey,
+    selectedFile.objectKey,
   )
 
   return {
     downloadUrl,
+    fileName: selectedFile.originalName,
     expiresIn: 300,
   }
 }
@@ -502,6 +530,7 @@ module.exports = {
   getMySubmissions,
   getAssignmentSubmissions,
   evaluateSubmission,
+  createSubmissionDownloadUrl,
   getDepartmentSubmissions,
   getInstitutionSubmissions,
 }

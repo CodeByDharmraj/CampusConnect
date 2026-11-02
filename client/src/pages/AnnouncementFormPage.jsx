@@ -88,7 +88,13 @@ function AnnouncementCard({ announcement, role, onMarkRead, markingId }) {
 
       {announcement.expiresAt && (
         <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-          Expires: {formatDate(announcement.expiresAt)}
+          Available until: {formatDate(announcement.expiresAt)}
+        </p>
+      )}
+
+      {isStudent && announcement.isRead && announcement.readAt && (
+        <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">
+          Read on: {formatDate(announcement.readAt)}
         </p>
       )}
 
@@ -124,6 +130,9 @@ export default function AnnouncementFormPage() {
 
   const [feedback, setFeedback] = useState(null)
   const [markingId, setMarkingId] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [unreadOnly, setUnreadOnly] = useState(false)
 
   const authOptions = getAuthOptions(accessToken)
 
@@ -298,6 +307,35 @@ export default function AnnouncementFormPage() {
 
   const announcements = announcementsQuery.data ?? []
   const courseOfferings = optionsQuery.data ?? []
+  const unreadCount = announcements.filter(
+    (announcement) => role === 'student' && !announcement.isRead,
+  ).length
+
+  const normalizedSearch = searchTerm.trim().toLowerCase()
+  const filteredAnnouncements = announcements.filter((announcement) => {
+    const matchesSearch =
+      !normalizedSearch ||
+      [announcement.title, announcement.detail, announcement.authorId?.name]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(normalizedSearch))
+
+    const matchesCategory =
+      categoryFilter === 'all' || announcement.category === categoryFilter
+
+    const matchesUnread =
+      !unreadOnly || (role === 'student' && !announcement.isRead)
+
+    return matchesSearch && matchesCategory && matchesUnread
+  })
+
+  const hasActiveFilters =
+    Boolean(searchTerm) || categoryFilter !== 'all' || unreadOnly
+
+  function clearFeedFilters() {
+    setSearchTerm('')
+    setCategoryFilter('all')
+    setUnreadOnly(false)
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -515,9 +553,15 @@ export default function AnnouncementFormPage() {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            Announcement feed
-          </h2>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              Announcement feed
+            </h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {announcements.length} available
+              {role === 'student' ? ` · ${unreadCount} unread` : ''}
+            </p>
+          </div>
 
           <Link
             to="/"
@@ -526,6 +570,67 @@ export default function AnnouncementFormPage() {
             Back to dashboard
           </Link>
         </div>
+
+        {!announcementsQuery.isPending && !announcementsQuery.isError && (
+          <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                Search announcements
+              </span>
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search title, details, or author"
+                className={fieldClass}
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                Category
+              </span>
+              <select
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
+                className={fieldClass}
+              >
+                <option value="all">All categories</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-2">
+              {role === 'student' ? (
+                <label className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={unreadOnly}
+                    onChange={(event) => setUnreadOnly(event.target.checked)}
+                    className="size-4 rounded border-slate-300 text-blue-700 focus:ring-blue-500"
+                  />
+                  Show unread only
+                </label>
+              ) : (
+                <span />
+              )}
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFeedFilters}
+                  className="text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {announcementsQuery.isPending && (
           <p role="status" className="mt-5 text-sm text-slate-500">
@@ -560,8 +665,17 @@ export default function AnnouncementFormPage() {
             </p>
           )}
 
+        {!announcementsQuery.isPending &&
+          !announcementsQuery.isError &&
+          announcements.length > 0 &&
+          filteredAnnouncements.length === 0 && (
+            <p className="mt-5 rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+              No announcements match these filters.
+            </p>
+          )}
+
         <div className="mt-5 space-y-4">
-          {announcements.map((announcement) => (
+          {filteredAnnouncements.map((announcement) => (
             <AnnouncementCard
               key={announcement._id}
               announcement={announcement}

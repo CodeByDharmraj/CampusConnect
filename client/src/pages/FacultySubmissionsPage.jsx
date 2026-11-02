@@ -67,7 +67,11 @@ function SubmissionRow({
     const currentVersion = submission.versions?.find(
         (version) => version.version === submission.currentVersion,
     )
-    const file = currentVersion?.file
+    const files = currentVersion?.files?.length
+        ? currentVersion.files
+        : currentVersion?.file
+            ? [currentVersion.file]
+            : []
 
     function handleEvaluate(event) {
         event.preventDefault()
@@ -128,32 +132,37 @@ function SubmissionRow({
             </div>
 
             <div className="mt-5 space-y-3 border-t border-slate-200 pt-4 dark:border-slate-700">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                            {file?.originalName || 'Submitted file'}
-                        </p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Version {submission.currentVersion} · {files.length} file(s)
+                </p>
 
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            Version {submission.currentVersion} ·{' '}
-                            {file?.size
-                                ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
-                                : 'Size unavailable'}
-                        </p>
-                    </div>
-
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        leftIcon={<Download size={15} />}
-                        isLoading={downloading}
-                        disabled={downloading}
-                        onClick={() => onDownload(submission._id)}
+                {files.map((file, index) => (
+                    <div
+                        key={`${file.originalName}-${index}`}
+                        className="flex flex-wrap items-center justify-between gap-3"
                     >
-                        Download
-                    </Button>
-                </div>
+                        <div className="min-w-0">
+                            <p className="break-all text-sm font-medium text-slate-800 dark:text-slate-200">
+                                {file.originalName}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                {(file.size / (1024 * 1024)).toFixed(2)} MB
+                            </p>
+                        </div>
+
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            leftIcon={<Download size={15} />}
+                            isLoading={downloading}
+                            disabled={downloading}
+                            onClick={() => onDownload(submission._id, index)}
+                        >
+                            Download
+                        </Button>
+                    </div>
+                ))}
             </div>
 
             <form
@@ -255,7 +264,7 @@ export default function FacultySubmissionsPage() {
                 },
             })
 
-            return response.data.assignments
+            return response.data.data.assignments
         },
         enabled: Boolean(accessToken),
     })
@@ -332,13 +341,13 @@ export default function FacultySubmissionsPage() {
         },
     })
 
-    async function handleDownload(submissionId) {
+    async function handleDownload(submissionId, fileIndex = 0) {
         setDownloadingId(submissionId)
         setFeedback(null)
 
         try {
             const response = await apiClient.get(
-                `/submissions/${submissionId}/download-url`,
+                `/submissions/${submissionId}/download-url?fileIndex=${fileIndex}`,
                 {
                     headers: {
                         Authorization: `Bearer ${accessToken}`,

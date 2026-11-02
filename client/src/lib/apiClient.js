@@ -1,8 +1,34 @@
 const DEFAULT_API_BASE_URL = 'http://localhost:5000/api/v1'
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
 
 const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
+  configuredApiBaseUrl ||
+  (import.meta.env.PROD ? '' : DEFAULT_API_BASE_URL)
 ).replace(/\/+$/, '')
+
+if (!API_BASE_URL) {
+  throw new Error(
+    'VITE_API_BASE_URL must be configured before creating a production build.',
+  )
+}
+
+if (import.meta.env.PROD) {
+  let apiUrl
+
+  try {
+    apiUrl = new URL(API_BASE_URL)
+  } catch {
+    throw new Error('VITE_API_BASE_URL must be a valid absolute URL.')
+  }
+
+  if (apiUrl.protocol !== 'https:') {
+    throw new Error('VITE_API_BASE_URL must use HTTPS in production.')
+  }
+
+  if (!apiUrl.pathname.endsWith('/api/v1')) {
+    throw new Error('VITE_API_BASE_URL must end with /api/v1.')
+  }
+}
 
 export class ApiClientError extends Error {
   constructor(message, status, code) {

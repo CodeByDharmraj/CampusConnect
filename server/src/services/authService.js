@@ -6,6 +6,7 @@ const {
   createRefreshSession,
   rotateRefreshSession,
   revokeRefreshSession,
+  revokeAllUserRefreshSessions,
 } = require('./refreshSessionService')
 
 async function provisionUser({ name, email, password, role, departmentId }) {
@@ -89,7 +90,11 @@ async function refresh(refreshToken) {
   const user = await User.findById(rotatedSession.userId)
 
   if (!user || !user.isActive) {
-    await revokeRefreshSession(rotatedSession.token)
+    if (user?._id) {
+      await revokeAllUserRefreshSessions(user._id)
+    } else {
+      await revokeRefreshSession(rotatedSession.token)
+    }
 
     throw new ApiError(
       401,

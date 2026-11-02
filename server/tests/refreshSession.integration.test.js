@@ -1,4 +1,4 @@
-﻿const test = require('node:test')
+const test = require('node:test')
 const assert = require('node:assert/strict')
 const mongoose = require('mongoose')
 const { randomUUID } = require('node:crypto')
@@ -142,6 +142,7 @@ test('refresh-session integration tests', { skip: !enabled }, async (t) => {
 
     await RefreshSession.create({
       userId: user._id,
+      familyId: randomUUID(),
       tokenHash,
       expiresAt: new Date(Date.now() - 60_000),
     })
@@ -165,6 +166,35 @@ test('refresh-session integration tests', { skip: !enabled }, async (t) => {
 
     assert.equal(result, null)
   })
+
+
+  await t.test(
+    'replaying a rotated token revokes every active session in its family',
+    async () => {
+      const user = await createTestUser()
+      const original = await createTrackedSession(user._id)
+      const independent = await createTrackedSession(user._id)
+
+      const rotated = await rotateRefreshSession(original.token)
+      assert.ok(rotated)
+      createdTokenHashes.push(hashRefreshToken(rotated.token))
+
+      // Replay of the old token should revoke its replacement, but not a
+      // different login family belonging to the same user.
+      const replay = await rotateRefreshSession(original.token)
+      assert.equal(replay, null)
+
+      const replacementRecord = await RefreshSession.findOne({
+        tokenHash: hashRefreshToken(rotated.token),
+      })
+      const independentRecord = await RefreshSession.findOne({
+        tokenHash: hashRefreshToken(independent.token),
+      })
+
+      assert.ok(replacementRecord.revokedAt)
+      assert.equal(independentRecord.revokedAt, null)
+    },
+  )
 
   await t.test(
     'inactive user cannot continue a refreshed session',

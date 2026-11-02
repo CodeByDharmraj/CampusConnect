@@ -6,9 +6,17 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
 
-  // Vitest uses jsdom to simulate a browser for component tests.
+  build: {
+    cssCodeSplit: true,
+    sourcemap: false,
+    reportCompressedSize: true,
+    chunkSizeWarningLimit: 500,
+  },
+
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
+    include: ['src/**/*.{test,spec}.{js,jsx}'],
+    exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
   },
 })

@@ -51,6 +51,13 @@ const announcementSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Department',
       default: null,
+      validate: {
+        validator(value) {
+          return this.scope === 'department' ? value != null : value == null
+        },
+        message:
+          'Department announcements require a department and other scopes must not contain one.',
+      },
     },
 
     // Required only for course announcements.
@@ -58,6 +65,13 @@ const announcementSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'CourseOffering',
       default: null,
+      validate: {
+        validator(value) {
+          return this.scope === 'course' ? value != null : value == null
+        },
+        message:
+          'Course announcements require a course offering and other scopes must not contain one.',
+      },
     },
 
     publishedAt: {
@@ -75,6 +89,12 @@ const announcementSchema = new mongoose.Schema(
     timestamps: true,
   },
 )
+
+// Supports the institution-wide feed and the common scope + newest-first sort.
+announcementSchema.index({
+  scope: 1,
+  publishedAt: -1,
+})
 
 announcementSchema.index({
   scope: 1,

@@ -364,6 +364,130 @@ async function verifyUploadedObject({
   }
 }
 
+
+async function createCourseMaterialUploadUrl({
+  facultyId,
+  courseOfferingId,
+  fileName,
+  contentType,
+  fileSize,
+}) {
+  requireStorageConfiguration()
+  validateUploadMetadata({ fileName, contentType, fileSize })
+
+  const objectKey = `course-materials/${courseOfferingId}/${crypto.randomUUID()}`
+  const uploadHeaders = {
+    'Content-Type': contentType,
+    'x-amz-meta-facultyid': String(facultyId),
+    'x-amz-meta-courseofferingid': String(courseOfferingId),
+  }
+
+  const command = new PutObjectCommand({
+    Bucket: env.R2_BUCKET_NAME,
+    Key: objectKey,
+    ContentType: contentType,
+    Metadata: {
+      facultyid: String(facultyId),
+      courseofferingid: String(courseOfferingId),
+    },
+  })
+
+  const uploadUrl = await getSignedUrl(s3Client, command, {
+    expiresIn: UPLOAD_URL_EXPIRY_SECONDS,
+    unhoistableHeaders: new Set([
+      'x-amz-meta-facultyid',
+      'x-amz-meta-courseofferingid',
+    ]),
+  })
+
+  return {
+    uploadUrl,
+    uploadHeaders,
+    objectKey,
+    expiresIn: UPLOAD_URL_EXPIRY_SECONDS,
+  }
+}
+
+async function verifyCourseMaterialObject({
+  objectKey,
+  facultyId,
+  courseOfferingId,
+  expectedContentType,
+  expectedFileSize,
+}) {
+  requireStorageConfiguration()
+
+  const command = new HeadObjectCommand({
+    Bucket: env.R2_BUCKET_NAME,
+    Key: objectKey,
+  })
+
+  let object
+
+  try {
+    object = await s3Client.send(command)
+  } catch (error) {
+    if (
+      error.name === 'NotFound' ||
+      error.name === 'NoSuchKey' ||
+      error.$metadata?.httpStatusCode === 404
+    ) {
+      throw new ApiError(
+        400,
+        'The uploaded file could not be found.',
+        'UPLOADED_FILE_NOT_FOUND',
+      )
+    }
+
+    throw error
+  }
+
+  if (
+    object.Metadata?.facultyid !== String(facultyId) ||
+    object.Metadata?.courseofferingid !== String(courseOfferingId)
+  ) {
+    throw new ApiError(
+      403,
+      'The uploaded file does not belong to this faculty member and course.',
+      'INVALID_UPLOAD_OWNER',
+    )
+  }
+
+  if (
+    object.ContentType !== expectedContentType ||
+    object.ContentLength !== expectedFileSize ||
+    object.ContentLength > MAX_FILE_SIZE
+  ) {
+    throw new ApiError(
+      400,
+      'Uploaded file metadata does not match the requested file.',
+      'UPLOAD_METADATA_MISMATCH',
+    )
+  }
+
+  const uploadedObject = await s3Client.send(
+    new GetObjectCommand({ Bucket: env.R2_BUCKET_NAME, Key: objectKey }),
+  )
+  const buffer = await readObjectBody(uploadedObject.Body)
+
+  if (buffer.length !== expectedFileSize) {
+    throw new ApiError(
+      400,
+      'The uploaded file size could not be verified.',
+      'UPLOAD_SIZE_MISMATCH',
+    )
+  }
+
+  await verifyFileContent(buffer, expectedContentType)
+
+  return {
+    objectKey,
+    contentType: object.ContentType,
+    fileSize: object.ContentLength,
+    etag: object.ETag || null,
+  }
+}
+
 async function createDownloadUrl(objectKey) {
   requireStorageConfiguration()
 
@@ -393,6 +517,8 @@ module.exports = {
   ALLOWED_FILE_TYPES,
   createUploadUrl,
   verifyUploadedObject,
+  createCourseMaterialUploadUrl,
+  verifyCourseMaterialObject,
   createDownloadUrl,
   deleteObject,
 }

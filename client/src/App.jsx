@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import {
   BrowserRouter,
   NavLink,
@@ -33,23 +33,37 @@ import {
 import { queryClient } from './lib/queryClient'
 import { useAuth } from './context/useAuth'
 
-import PlaceholderPage from './pages/PlaceholderPage'
-import DashboardPage from './pages/DashboardPage'
-import LoginFormPage from './pages/LoginFormPage'
-import AnnouncementFormPage from './pages/AnnouncementFormPage'
+const PlaceholderPage = lazy(() => import('./pages/PlaceholderPage'))
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const LoginFormPage = lazy(() => import('./pages/LoginFormPage'))
+const AnnouncementFormPage = lazy(() => import('./pages/AnnouncementFormPage'))
 import ProtectedRoute from './routes/ProtectedRoute.jsx'
 import PublicRoute from './routes/PublicRoute.jsx'
-import DesignSystemPage from './pages/DesignSystemPage.jsx'
-import EnrollmentManagementPage from './pages/EnrollmentManagementPage.jsx'
-import MyCoursesPage from './pages/MyCoursesPage'
-import TimetablePage from './pages/TimetablePage.jsx'
-import FacultyCourseManagementPage from './pages/FacultyCourseManagementPage.jsx'
-import FacultyManagementPage from './pages/FacultyManagementPage.jsx'
-import AssignmentManagementPage from './pages/AssignmentManagementPage.jsx'
-import AttendancePage from './pages/AttendancePage.jsx'
-import StudentSubmissionsPage from './pages/StudentSubmissionsPage.jsx'
-import FacultySubmissionsPage from './pages/FacultySubmissionsPage.jsx'
-import SubmissionOversightPage from './pages/SubmissionOversightPage'
+const DesignSystemPage = lazy(() => import('./pages/DesignSystemPage.jsx'))
+const EnrollmentManagementPage = lazy(() => import('./pages/EnrollmentManagementPage.jsx'))
+const MyCoursesPage = lazy(() => import('./pages/MyCoursesPage'))
+const StudentCourseMaterialsPage = lazy(() => import('./pages/StudentCourseMaterialsPage.jsx'))
+const TimetablePage = lazy(() => import('./pages/TimetablePage.jsx'))
+const FacultyCourseManagementPage = lazy(() => import('./pages/FacultyCourseManagementPage.jsx'))
+const FacultyManagementPage = lazy(() => import('./pages/FacultyManagementPage.jsx'))
+const AssignmentManagementPage = lazy(() => import('./pages/AssignmentManagementPage.jsx'))
+const AttendancePage = lazy(() => import('./pages/AttendancePage.jsx'))
+const StudentSubmissionsPage = lazy(() => import('./pages/StudentSubmissionsPage.jsx'))
+const FacultySubmissionsPage = lazy(() => import('./pages/FacultySubmissionsPage.jsx'))
+const SubmissionOversightPage = lazy(() => import('./pages/SubmissionOversightPage'))
+const ClubDirectoryPage = lazy(() =>
+  import('./pages/ClubDirectoryPage.jsx').then((module) => ({
+    default: module.ClubDirectoryPage,
+  })),
+)
+const ClubDetailPage = lazy(() =>
+  import('./pages/ClubDirectoryPage.jsx').then((module) => ({
+    default: module.ClubDetailPage,
+  })),
+)
+const EventManagementPage = lazy(() => import('./pages/EventManagementPage.jsx'))
+const MyEventRegistrationsPage = lazy(() => import('./pages/MyEventRegistrationsPage.jsx'))
+const EventAttendancePage = lazy(() => import('./pages/EventAttendancePage.jsx'))
 
 import {
   navigationPermissions,
@@ -95,10 +109,22 @@ const navigation = [
     permission: 'announcements',
   },
   {
-    label: 'Clubs & Events',
+    label: 'Clubs & Communities',
     path: '/clubs-events',
     icon: Users,
     permission: 'clubsEvents',
+  },
+  {
+    label: 'Campus Events',
+    path: '/events',
+    icon: CalendarDays,
+    permission: 'clubsEvents',
+  },
+  {
+    label: 'My Event Registrations',
+    path: '/my-event-registrations',
+    icon: CalendarCheck,
+    permission: 'myEventRegistrations',
   },
   {
     label: 'Grades & Feedback',
@@ -158,11 +184,6 @@ const placeholderPages = [
     description: 'Review assignment instructions, deadlines, and submissions.',
   },
   {
-    path: '/clubs-events',
-    title: 'Clubs & Events',
-    description: 'Explore campus clubs, activities, and upcoming events.',
-  },
-  {
     path: '/grades',
     title: 'Grades & Feedback',
     description: 'View grades and academic feedback.',
@@ -179,6 +200,30 @@ const placeholderPages = [
   },
 ]
 
+
+function PageLoadingFallback() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label="Loading page"
+      className="mx-auto w-full max-w-5xl space-y-5"
+    >
+      <span className="sr-only">Loading page…</span>
+      <div className="h-8 w-48 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
+      <div className="h-4 w-72 max-w-full animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 3 }, (_, index) => (
+          <div
+            key={index}
+            className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function NotFoundPage() {
   return (
     <PlaceholderPage
@@ -191,6 +236,9 @@ function NotFoundPage() {
 function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const menuTriggerRef = useRef(null)
+  const menuCloseRef = useRef(null)
+  const wasMenuOpenRef = useRef(false)
 
   const { user, isAuthenticated, isLoading, logout } = useAuth()
 
@@ -227,6 +275,54 @@ function AppLayout() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark)
   }, [isDark])
+
+  useEffect(() => {
+    if (!menuOpen) return undefined
+
+    menuCloseRef.current?.focus()
+
+    function handleDrawerKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setMenuOpen(false)
+        return
+      }
+
+      if (event.key !== 'Tab') return
+
+      const drawer = document.getElementById('mobile-navigation')
+      const focusable = drawer?.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )
+      if (!focusable?.length) return
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleDrawerKeyDown)
+    return () => document.removeEventListener('keydown', handleDrawerKeyDown)
+  }, [menuOpen])
+
+  useEffect(() => {
+    if (menuOpen) {
+      wasMenuOpenRef.current = true
+      return
+    }
+
+    if (wasMenuOpenRef.current) {
+      menuTriggerRef.current?.focus()
+      wasMenuOpenRef.current = false
+    }
+  }, [menuOpen])
 
   const navClass = ({ isActive }) =>
     `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${isActive
@@ -307,6 +403,12 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100">
+      <a
+        href="#main-content"
+        className="sr-only z-[100] rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        Skip to main content
+      </a>
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
         {sidebar}
       </aside>
@@ -322,10 +424,13 @@ function AppLayout() {
 
           <aside
             id="mobile-navigation"
-            aria-label="Mobile navigation drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mobile navigation"
             className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
           >
             <button
+              ref={menuCloseRef}
               type="button"
               aria-label="Close navigation menu"
               onClick={() => setMenuOpen(false)}
@@ -343,11 +448,12 @@ function AppLayout() {
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6 lg:px-8 dark:border-slate-800 dark:bg-slate-900/90">
           <div className="flex items-center gap-3">
             <button
+              ref={menuTriggerRef}
               type="button"
               className="inline-flex size-10 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-slate-300 dark:hover:bg-slate-800 lg:hidden"
               aria-label="Open navigation menu"
               aria-expanded={menuOpen}
-              aria-controls="mobile-navigation"
+              aria-controls={menuOpen ? "mobile-navigation" : undefined}
               onClick={() => setMenuOpen(true)}
             >
               <Menu size={22} strokeWidth={2} aria-hidden="true" />
@@ -440,8 +546,9 @@ function AppLayout() {
           </div>
         </header>
 
-        <main className="px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-          <Routes>
+        <main id="main-content" tabIndex="-1" className="min-w-0 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+          <Suspense fallback={<PageLoadingFallback />}>
+            <Routes>
             <Route element={<PublicRoute />}>
               <Route path="/login" element={<LoginFormPage />} />
             </Route>
@@ -455,6 +562,13 @@ function AppLayout() {
                 }
               >
                 <Route path="/courses" element={<MyCoursesPage />} />
+              </Route>
+
+              <Route element={<ProtectedRoute allowedRoles={['student']} />}>
+                <Route
+                  path="/courses/:courseOfferingId/materials"
+                  element={<StudentCourseMaterialsPage />}
+                />
               </Route>
 
               <Route
@@ -575,20 +689,21 @@ function AppLayout() {
                 }
               >
 
-                <Route
-                  path="/clubs-events"
-                  element={
-                    <PlaceholderPage
-                      title="Clubs & Events"
-                      description="Explore campus clubs, activities, and upcoming events."
-                    />
-                  }
-                />
+                <Route path="/clubs-events" element={<ClubDirectoryPage />} />
+                <Route path="/clubs-events/:slug" element={<ClubDetailPage />} />
+                <Route path="/events" element={<EventManagementPage />} />
+                <Route element={<ProtectedRoute allowedRoles={['coordinator', 'admin']} />} >
+                  <Route path="/events/:eventId/attendance" element={<EventAttendancePage />} />
+                </Route>
+                <Route element={<ProtectedRoute allowedRoles={['student']} />} >
+                  <Route path="/my-event-registrations" element={<MyEventRegistrationsPage />} />
+                </Route>
               </Route>
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />
-          </Routes>
+            </Routes>
+          </Suspense>
         </main>
 
         <footer className="border-t border-slate-200 px-4 py-5 text-center text-xs text-slate-500 sm:px-6 lg:px-8 dark:border-slate-800 dark:text-slate-400">

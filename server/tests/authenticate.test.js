@@ -1,6 +1,8 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const express = require('express')
+const jwt = require('jsonwebtoken')
+const env = require('../src/config/env')
 const { once } = require('node:events')
 const User = require('../src/models/User')
 const authenticate = require('../src/middleware/authenticate')
@@ -143,4 +145,26 @@ test('protected route attaches an active user to the request', async (t) => {
     success: true,
     userId: '507f1f77bcf86cd799439011',
   })
+})
+
+
+test('protected route rejects a JWT with a malformed subject', async (t) => {
+  const baseUrl = await withServer(t)
+  const token = jwt.sign(
+    { sub: 'not-a-mongodb-object-id', role: 'admin' },
+    env.ACCESS_TOKEN_SECRET,
+    {
+      algorithm: 'HS256',
+      expiresIn: '5m',
+      issuer: 'campusconnect-api',
+      audience: 'campusconnect-client',
+    },
+  )
+
+  const response = await fetch(`${baseUrl}/protected`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+
+  assert.equal(response.status, 401)
+  assert.equal((await response.json()).code, 'INVALID_ACCESS_TOKEN')
 })

@@ -11,7 +11,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:frontend-regression": "vitest run src/routes/ProtectedRoute.test.jsx src/routes/PublicRoute.test.jsx src/pages/FormValidationRegression.test.jsx src/pages/StudentSubmissionsPage.test.jsx src/pages/DashboardPage.test.jsx",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:responsive-accessibility": "playwright test e2e/responsive-accessibility.spec.js",
+    "budget": "node scripts/check-bundle-budget.js",
+    "demo:screenshots": "node scripts/capture-demo-screenshots.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -36,6 +42,7 @@
     "jsdom": "^29.1.1",
     "prettier": "^3.9.10",
     "vite": "^8.3.5",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "@playwright/test": "^1.58.2"
   }
 }

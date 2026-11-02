@@ -4,6 +4,7 @@ const authenticate = require('../middleware/authenticate')
 const authorizeRoles = require('../middleware/authorizeRoles')
 const submissionService = require('../services/submissionService')
 const asyncHandler = require('../utils/asyncHandler')
+const ApiError = require('../utils/ApiError')
 
 const {
   validateUploadRequest,
@@ -149,9 +150,21 @@ router.get(
   asyncHandler(async (req, res) => {
     const submissionId = validateSubmissionId(req.params.submissionId)
 
+    const rawFileIndex = req.query.fileIndex ?? '0'
+    const fileIndex = Number(rawFileIndex)
+
+    if (
+      !Number.isSafeInteger(fileIndex) ||
+      fileIndex < 0 ||
+      String(fileIndex) !== String(rawFileIndex)
+    ) {
+      throw new ApiError(400, 'A valid file index is required.', 'VALIDATION_ERROR')
+    }
+
     const result = await submissionService.createSubmissionDownloadUrl(
       req.user,
       submissionId,
+      fileIndex,
     )
 
     return res.status(200).json({

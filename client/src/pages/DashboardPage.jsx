@@ -6,6 +6,12 @@ import {
   CalendarDays,
   ClipboardList,
   RefreshCw,
+  Users,
+  Bell,
+  Percent,
+  CalendarClock,
+  ClipboardCheck,
+  Trophy,
 } from 'lucide-react'
 
 import { useAuth } from '../context/useAuth'
@@ -96,6 +102,28 @@ function EmptyState({ message }) {
       <p className="text-sm text-slate-500 dark:text-slate-400">{message}</p>
     </div>
   )
+}
+
+const DASHBOARD_METRIC_ICONS = {
+  enrolledCourses: BookOpen,
+  attendance: Percent,
+  openAssignments: ClipboardList,
+  unreadAnnouncements: Bell,
+  upcomingEvents: CalendarDays,
+  assignedCourses: BookOpen,
+  students: Users,
+  pendingReviews: ClipboardCheck,
+  attendanceSessions: CalendarClock,
+  departmentStudents: Users,
+  departmentFaculty: Users,
+  activeClubs: Trophy,
+  eventRegistrations: ClipboardCheck,
+  activeOfferings: BookOpen,
+  faculty: Users,
+  coordinators: Users,
+  departments: Building2,
+  courses: BookOpen,
+  courseOfferings: BookOpen,
 }
 
 function DashboardCard({ label, value, description, icon: Icon }) {
@@ -376,6 +404,12 @@ export default function DashboardPage() {
     enabled: Boolean(accessToken) && !isAuthLoading,
   }
 
+  const summaryQuery = useQuery({
+    queryKey: ['dashboard', 'summary', accessToken],
+    queryFn: () => apiClient.get('/dashboard/summary', getAuthOptions(accessToken)),
+    ...queryOptions,
+  })
+
   const coursesQuery = useQuery({
     queryKey: ['dashboard', 'courses', accessToken],
     queryFn: () => apiClient.get('/courses', getAuthOptions(accessToken)),
@@ -408,41 +442,13 @@ export default function DashboardPage() {
     )
   }
 
-  const courseCount = coursesQuery.data?.data?.courses?.length
-  const assignmentCount = assignmentsQuery.data?.data?.assignments?.length
-  const timetableCount = timetableQuery.data?.data?.entries?.length
-  const departmentCount = departmentsQuery.data?.data?.departments?.length
-
-  const stats = [
-    {
-      label: 'Visible courses',
-      value: courseCount ?? '—',
-      description: 'Courses available to your account',
-      icon: BookOpen,
-    },
-    {
-      label: 'Visible assignments',
-      value: assignmentCount ?? '—',
-      description: 'Assignments in your permitted view',
-      icon: ClipboardList,
-    },
-    {
-      label: 'Timetable entries',
-      value: timetableCount ?? '—',
-      description: 'Active scheduled sessions',
-      icon: CalendarDays,
-    },
-    ...(canViewDepartments
-      ? [
-          {
-            label: 'Visible departments',
-            value: departmentCount ?? '—',
-            description: 'Departments in your permitted view',
-            icon: Building2,
-          },
-        ]
-      : []),
-  ]
+  const dashboardMetrics = summaryQuery.data?.data?.summary?.metrics ?? []
+  const stats = dashboardMetrics.map((item) => ({
+    label: item.label,
+    value: item.value,
+    description: item.description,
+    icon: DASHBOARD_METRIC_ICONS[item.key] || ClipboardList,
+  }))
 
   const displayName = user?.name || user?.email || 'there'
   const greeting = `Welcome, ${displayName}`
@@ -473,11 +479,17 @@ export default function DashboardPage() {
           At a glance
         </h2>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {stats.map((stat) => (
-            <DashboardCard key={stat.label} {...stat} />
-          ))}
-        </div>
+        {summaryQuery.isError ? (
+          <SectionError error={summaryQuery.error} onRetry={() => summaryQuery.refetch()} />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {summaryQuery.isPending
+              ? Array.from({ length: 4 }, (_, index) => (
+                  <div key={index} className="h-36 animate-pulse rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-900" />
+                ))
+              : stats.map((stat) => <DashboardCard key={stat.label} {...stat} />)}
+          </div>
+        )}
       </section>
 
       <div className="grid items-start gap-6 xl:grid-cols-2">

@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
     AlertCircle,
     CalendarClock,
-    CheckCircle2,
     Clock3,
     Download,
     FileText,
@@ -25,6 +24,8 @@ import { useAuth } from '../context/useAuth.js'
 import { apiClient } from '../lib/apiClient.js'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
+const MAX_SUBMISSION_SIZE = 20 * 1024 * 1024
+const MAX_FILES_PER_SUBMISSION = 3
 
 const ACCEPTED_FILE_TYPES = new Set([
     'application/pdf',
@@ -61,11 +62,6 @@ function getAssignmentId(submission) {
     return typeof assignment === 'string' ? assignment : assignment?._id
 }
 
-function getSubmissionForAssignment(submissions, assignmentId) {
-    return submissions.find(
-        (submission) => getAssignmentId(submission) === assignmentId,
-    )
-}
 
 function isDeadlinePassed(dueDate) {
     return !dueDate || new Date(dueDate).getTime() <= Date.now()
@@ -105,6 +101,20 @@ function validateSelectedFile(file) {
     return expectedType
 }
 
+function validateSelectedFiles(files) {
+    if (!files.length) throw new Error('Choose at least one file.')
+    if (files.length > MAX_FILES_PER_SUBMISSION) {
+        throw new Error(`Choose no more than ${MAX_FILES_PER_SUBMISSION} files.`)
+    }
+
+    files.forEach(validateSelectedFile)
+
+    const totalSize = files.reduce((total, file) => total + file.size, 0)
+    if (totalSize > MAX_SUBMISSION_SIZE) {
+        throw new Error('The combined file size cannot exceed 20 MB.')
+    }
+}
+
 function AssignmentCard({
     assignment,
     submission,
@@ -114,7 +124,7 @@ function AssignmentCard({
     downloading,
 }) {
     const fileInputRef = useRef(null)
-    const [selectedFile, setSelectedFile] = useState(null)
+    const [selectedFiles, setSelectedFiles] = useState([])
     const [fileError, setFileError] = useState('')
 
     const assignmentId = assignment._id
@@ -122,33 +132,31 @@ function AssignmentCard({
     const hasSubmission = Boolean(submission)
 
     function handleFileChange(event) {
-        const file = event.target.files?.[0] || null
+        const files = Array.from(event.target.files || [])
 
-        setSelectedFile(file)
+        setSelectedFiles(files)
         setFileError('')
 
-        if (file) {
-            try {
-                validateSelectedFile(file)
-            } catch (error) {
-                setFileError(error.message)
-                setSelectedFile(null)
-                event.target.value = ''
-            }
+        try {
+            validateSelectedFiles(files)
+        } catch (error) {
+            setFileError(error.message)
+            setSelectedFiles([])
+            event.target.value = ''
         }
     }
 
     function handleSubmit() {
-        if (!selectedFile) {
-            setFileError('Choose a file before submitting.')
+        if (selectedFiles.length === 0) {
+            setFileError('Choose at least one file before submitting.')
             return
         }
 
         onSubmit({
             assignmentId,
-            file: selectedFile,
+            files: selectedFiles,
             onSuccess: () => {
-                setSelectedFile(null)
+                setSelectedFiles([])
                 setFileError('')
 
                 if (fileInputRef.current) {
@@ -228,13 +236,32 @@ function AssignmentCard({
                             </span>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 text-sm">
-                            <FileText size={16} className="text-slate-400" />
-                            <span className="break-all text-slate-700 dark:text-slate-300">
-                                {submission.versions?.find(
+                        <div className="space-y-2">
+                            {(submission.versions?.find(
+                                (version) => version.version === submission.currentVersion,
+                            )?.files || [
+                                submission.versions?.find(
                                     (version) => version.version === submission.currentVersion,
-                                )?.file?.originalName || 'Submitted file'}
-                            </span>
+                                )?.file,
+                            ].filter(Boolean)).map((file, index) => (
+                                <div key={`${file.originalName}-${index}`} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                                    <span className="flex min-w-0 items-center gap-2 break-all text-slate-700 dark:text-slate-300">
+                                        <FileText size={16} className="shrink-0 text-slate-400" />
+                                        {file.originalName} ({formatFileSize(file.size)})
+                                    </span>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        leftIcon={<Download size={14} />}
+                                        isLoading={downloading}
+                                        disabled={downloading}
+                                        onClick={() => onDownload(submission._id, index)}
+                                    >
+                                        Download
+                                    </Button>
+                                </div>
+                            ))}
                         </div>
 
                         <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -256,17 +283,6 @@ function AssignmentCard({
                             </div>
                         )}
 
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            leftIcon={<Download size={15} />}
-                            isLoading={downloading}
-                            disabled={downloading}
-                            onClick={() => onDownload(submission._id)}
-                        >
-                            Download submitted file
-                        </Button>
                     </div>
                 )}
 
@@ -292,6 +308,7 @@ function AssignmentCard({
                                 ref={fileInputRef}
                                 id={`submission-file-${assignmentId}`}
                                 type="file"
+                                multiple
                                 accept={ACCEPTED_EXTENSIONS}
                                 onChange={handleFileChange}
                                 disabled={isSubmitting}
@@ -299,15 +316,22 @@ function AssignmentCard({
                             />
 
                             <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
-                                PDF, DOCX, PPTX, XLSX or ZIP. Maximum file size: 10 MB.
+                                PDF, DOCX, PPTX, XLSX or ZIP. Up to 3 files, 10 MB each, 20 MB combined.
                             </p>
                         </div>
 
-                        {selectedFile && (
-                            <p className="text-sm text-slate-600 dark:text-slate-300">
-                                Selected: {selectedFile.name} (
-                                {formatFileSize(selectedFile.size)})
-                            </p>
+                        {selectedFiles.length > 0 && (
+                            <div className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
+                                {selectedFiles.map((file) => (
+                                    <p key={`${file.name}-${file.lastModified}`}>
+                                        Selected: {file.name} ({formatFileSize(file.size)})
+                                    </p>
+                                ))}
+                                <p className="font-medium">
+                                    {selectedFiles.length} / {MAX_FILES_PER_SUBMISSION} files ·{' '}
+                                    {formatFileSize(selectedFiles.reduce((total, file) => total + file.size, 0))} / 20 MB
+                                </p>
+                            </div>
                         )}
 
                         {fileError && (
@@ -319,7 +343,7 @@ function AssignmentCard({
                         <Button
                             type="button"
                             onClick={handleSubmit}
-                            disabled={!selectedFile || isSubmitting}
+                            disabled={!selectedFiles.length || isSubmitting}
                             isLoading={isSubmitting}
                             leftIcon={!isSubmitting && <Upload size={16} />}
                         >
@@ -347,7 +371,7 @@ export default function StudentSubmissionsPage() {
                 },
             })
 
-            return response.data.assignments
+            return response.data.data.assignments
         },
         enabled: Boolean(accessToken),
     })
@@ -377,62 +401,56 @@ export default function StudentSubmissionsPage() {
     }, [submissionsQuery.data])
 
     const submitMutation = useMutation({
-        mutationFn: async ({ assignmentId, file }) => {
-            const contentType = validateSelectedFile(file)
+        mutationFn: async ({ assignmentId, files }) => {
+            validateSelectedFiles(files)
 
-            // 1. Ask Express for a short-lived, student-specific R2 upload URL.
-            const uploadResponse = await apiClient.post(
-                '/submissions/upload-url',
-                {
-                    assignmentId,
-                    fileName: file.name,
-                    contentType,
-                    fileSize: file.size,
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
+            // Upload each selected file directly to private R2 using its own
+            // short-lived, student- and assignment-scoped URL.
+            const uploadedFiles = []
+
+            for (const file of files) {
+                const contentType = validateSelectedFile(file)
+                const uploadResponse = await apiClient.post(
+                    '/submissions/upload-url',
+                    {
+                        assignmentId,
+                        fileName: file.name,
+                        contentType,
+                        fileSize: file.size,
                     },
-                },
-            )
-
-            const {
-                uploadUrl,
-                uploadHeaders,
-                objectKey,
-            } = uploadResponse.data.data
-
-            if (!uploadUrl || !objectKey || !uploadHeaders) {
-                throw new Error('The server returned an incomplete upload response.')
-            }
-
-            // 2. Upload the file directly to private Cloudflare R2.
-            const uploadResult = await fetch(uploadUrl, {
-                method: 'PUT',
-                headers: uploadHeaders,
-                body: file,
-            })
-
-            if (!uploadResult.ok) {
-                throw new Error(
-                    `File upload failed with status ${uploadResult.status}.`,
+                    {
+                        headers: { Authorization: `Bearer ${accessToken}` },
+                    },
                 )
-            }
 
-            // 3. Ask Express to verify the uploaded object and save the submission.
-            const completionResponse = await apiClient.post(
-                '/submissions/complete',
-                {
-                    assignmentId,
+                const { uploadUrl, uploadHeaders, objectKey } = uploadResponse.data.data
+                if (!uploadUrl || !objectKey || !uploadHeaders) {
+                    throw new Error('The server returned an incomplete upload response.')
+                }
+
+                const uploadResult = await fetch(uploadUrl, {
+                    method: 'PUT',
+                    headers: uploadHeaders,
+                    body: file,
+                })
+
+                if (!uploadResult.ok) {
+                    throw new Error(`Upload failed for ${file.name} (HTTP ${uploadResult.status}).`)
+                }
+
+                uploadedFiles.push({
                     objectKey,
                     fileName: file.name,
                     contentType,
                     fileSize: file.size,
-                },
+                })
+            }
+
+            const completionResponse = await apiClient.post(
+                '/submissions/complete',
+                { assignmentId, files: uploadedFiles },
                 {
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                    },
+                    headers: { Authorization: `Bearer ${accessToken}` },
                 },
             )
 
@@ -463,13 +481,13 @@ export default function StudentSubmissionsPage() {
         },
     })
 
-    async function handleDownload(submissionId) {
+    async function handleDownload(submissionId, fileIndex = 0) {
         setDownloadingId(submissionId)
         setFeedback(null)
 
         try {
             const response = await apiClient.get(
-                `/submissions/${submissionId}/download-url`,
+                `/submissions/${submissionId}/download-url?fileIndex=${fileIndex}`,
                 {
                     headers: {
                         Authorization: `Bearer ${accessToken}`,
@@ -638,11 +656,11 @@ export default function StudentSubmissionsPage() {
                                 key={assignment._id}
                                 assignment={assignment}
                                 submission={submissionByAssignment.get(assignment._id)}
-                                onSubmit={({ assignmentId, file, onSuccess }) => {
+                                onSubmit={({ assignmentId, files, onSuccess }) => {
                                     setFeedback(null)
 
                                     submitMutation.mutate(
-                                        { assignmentId, file },
+                                        { assignmentId, files },
                                         { onSuccess },
                                     )
                                 }}

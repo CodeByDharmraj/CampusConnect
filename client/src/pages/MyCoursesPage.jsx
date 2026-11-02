@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { BookOpen, CalendarDays, GraduationCap, RefreshCw } from 'lucide-react'
+import { useNavigate } from 'react-router'
+import { BookOpen, CalendarDays, FileText, GraduationCap, RefreshCw } from 'lucide-react'
 
 import { apiClient } from '../lib/apiClient'
 import Button from '../components/Button'
@@ -23,7 +24,7 @@ async function fetchMyCourses(accessToken) {
   return response.data.courses
 }
 
-function CourseCard({ course }) {
+function CourseCard({ course, showMaterials, onViewMaterials }) {
   const offering = course.courseOffering
   const details = offering.courseId
 
@@ -79,6 +80,19 @@ function CourseCard({ course }) {
             {details.credits} {details.credits === 1 ? 'credit' : 'credits'}
           </p>
         </div>
+
+        {showMaterials && (
+          <Button
+            type="button"
+            variant="outline"
+            fullWidth
+            className="mt-5"
+            leftIcon={<FileText size={16} />}
+            onClick={() => onViewMaterials(course)}
+          >
+            View course notes
+          </Button>
+        )}
       </CardContent>
     </Card>
   )
@@ -100,7 +114,16 @@ function CourseSkeleton() {
 }
 
 export default function MyCoursesPage() {
-  const { accessToken } = useAuth()
+  const { accessToken, user } = useAuth()
+  const navigate = useNavigate()
+
+  function handleViewMaterials(course) {
+    const offeringId = course?.courseOffering?._id
+
+    if (!offeringId) return
+
+    navigate(`/courses/${offeringId}/materials`, { state: { course } })
+  }
 
   const {
     data: courses = [],
@@ -183,7 +206,12 @@ export default function MyCoursesPage() {
 
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {courses.map((course) => (
-              <CourseCard key={course.id} course={course} />
+              <CourseCard
+                key={course.id}
+                course={course}
+                showMaterials={user?.role === 'student'}
+                onViewMaterials={handleViewMaterials}
+              />
             ))}
           </div>
         </>

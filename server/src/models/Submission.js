@@ -26,7 +26,7 @@ const submissionFileSchema = new mongoose.Schema(
       type: Number,
       required: [true, 'File size is required.'],
       min: [1, 'File must not be empty.'],
-      max: [10 * 1024 * 1024, 'File cannot exceed 10 MB.'],
+      max: [10 * 1024 * 1024, 'Each file cannot exceed 10 MB.'],
     },
 
     etag: {
@@ -47,9 +47,30 @@ const submissionVersionSchema = new mongoose.Schema(
       min: 1,
     },
 
+    // `file` remains for compatibility with submissions created before
+    // multipart uploads. New versions store every attachment in `files`.
     file: {
       type: submissionFileSchema,
       required: true,
+    },
+
+    files: {
+      type: [submissionFileSchema],
+      default: undefined,
+      validate: [
+        {
+          validator(files) {
+            return !files || (files.length >= 1 && files.length <= 3)
+          },
+          message: 'A submission version must contain between 1 and 3 files.',
+        },
+        {
+          validator(files) {
+            return !files || files.reduce((total, item) => total + item.size, 0) <= 20 * 1024 * 1024
+          },
+          message: 'The combined submission size cannot exceed 20 MB.',
+        },
+      ],
     },
 
     submittedAt: {

@@ -35,7 +35,7 @@ const authenticate = asyncHandler(async (req, res, next) => {
   if (
     typeof payload !== 'object' ||
     typeof payload.sub !== 'string' ||
-    !payload.sub
+    !/^[a-fA-F0-9]{24}$/.test(payload.sub)
   ) {
     throw new ApiError(401, 'Invalid access token.', 'INVALID_ACCESS_TOKEN')
   }

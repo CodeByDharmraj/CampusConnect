@@ -1,43 +1,75 @@
 const ApiError = require('../utils/ApiError')
 
-function errorHandler(err, req, res, next) {
-  if (res.headersSent) {
-    return next(err)
+function normalizeError(err) {
+  if (err instanceof ApiError) {
+    return {
+      statusCode: err.statusCode,
+      message: err.statusCode < 500 ? err.message : 'Internal server error',
+      code: err.code,
+    }
   }
 
-  const isApiError = err instanceof ApiError
-  const statusCode = isApiError ? err.statusCode : 500
+  if (err?.type === 'entity.too.large') {
+    return {
+      statusCode: 413,
+      message: 'Request payload is too large.',
+      code: 'PAYLOAD_TOO_LARGE',
+    }
+  }
 
-  const message =
-    isApiError && statusCode < 500
-      ? err.message
-      : statusCode === 500
-        ? 'Internal server error'
-        : 'Request failed'
+  if (err?.type === 'entity.parse.failed') {
+    return {
+      statusCode: 400,
+      message: 'Request body contains invalid JSON.',
+      code: 'INVALID_JSON',
+    }
+  }
 
-  const code = isApiError
-    ? err.code
-    : statusCode === 500
-      ? 'INTERNAL_SERVER_ERROR'
-      : 'REQUEST_FAILED'
+  if (err?.name === 'ValidationError' || err?.name === 'CastError') {
+    return {
+      statusCode: 400,
+      message: 'Request contains invalid data.',
+      code: 'VALIDATION_ERROR',
+    }
+  }
 
-  if (statusCode >= 500) {
+  if (err?.code === 11000) {
+    return {
+      statusCode: 409,
+      message: 'A record with the supplied unique value already exists.',
+      code: 'DUPLICATE_RESOURCE',
+    }
+  }
+
+  return {
+    statusCode: 500,
+    message: 'Internal server error',
+    code: 'INTERNAL_SERVER_ERROR',
+  }
+}
+
+function errorHandler(err, req, res, next) {
+  if (res.headersSent) return next(err)
+
+  const normalized = normalizeError(err)
+
+  if (normalized.statusCode >= 500) {
     console.error(
       JSON.stringify({
         level: 'error',
         message: 'HTTP request failed',
         method: req.method,
         path: req.path,
-        statusCode,
+        statusCode: normalized.statusCode,
         errorName: err.name || 'Error',
       }),
     )
   }
 
-  return res.status(statusCode).json({
+  return res.status(normalized.statusCode).json({
     success: false,
-    message,
-    code,
+    message: normalized.message,
+    code: normalized.code,
   })
 }
 

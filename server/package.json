@@ -11,7 +11,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:integration": "node --test tests/refreshSession.integration.test.js",
-    "seed": "node src/scripts/seedDevelopment.js"
+    "seed": "node src/scripts/seedDevelopment.js",
+    "test:security": "node --test tests/securityHardening.test.js tests/productionReadiness.test.js tests/eventAuthorizationSecurity.test.js tests/authenticate.test.js tests/authRoutes.test.js tests/authorizeRoles.test.js tests/attendanceSubmissionSecurity.test.js tests/announcementIntegration.test.js tests/eventLifecycleIntegration.test.js",
+    "test:regression": "node --test",
+    "test:campus": "node --test tests/announcementIntegration.test.js tests/eventLifecycleIntegration.test.js",
+    "seed:development": "node src/scripts/seedDevelopment.js"
   },
   "keywords": [],
   "author": "",

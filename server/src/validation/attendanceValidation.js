@@ -127,6 +127,55 @@ function validateCreateAttendanceSession(body = {}) {
   }
 }
 
+
+function validateBulkAttendance(body = {}) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    fail('Request body must be an object.')
+  }
+
+  const allowedFields = ['attendance']
+  for (const field of Object.keys(body)) {
+    if (!allowedFields.includes(field)) {
+      fail(`Unknown field: ${field}.`)
+    }
+  }
+
+  if (!Array.isArray(body.attendance) || body.attendance.length === 0) {
+    fail('Attendance must contain at least one student.')
+  }
+
+  const seenStudents = new Set()
+  const attendance = body.attendance.map((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      fail('Each attendance entry must be an object.')
+    }
+
+    for (const field of Object.keys(item)) {
+      if (!['studentId', 'status'].includes(field)) {
+        fail(`Unknown attendance field: ${field}.`)
+      }
+    }
+
+    const studentId = validateObjectId(item.studentId, 'Student ID')
+    const normalizedId = String(studentId)
+
+    if (seenStudents.has(normalizedId)) {
+      fail('A student cannot appear more than once in a session.')
+    }
+    seenStudents.add(normalizedId)
+
+    if (!ATTENDANCE_STATUSES.includes(item.status)) {
+      fail(
+        `Attendance status must be one of: ${ATTENDANCE_STATUSES.join(', ')}.`,
+      )
+    }
+
+    return { studentId, status: item.status }
+  })
+
+  return { attendance }
+}
+
 function validateSessionId(sessionId) {
   return validateObjectId(sessionId, 'Attendance session ID')
 }
@@ -191,6 +240,7 @@ function validateReviewCorrection(body = {}) {
 
 module.exports = {
   validateCreateAttendanceSession,
+  validateBulkAttendance,
   validateSessionId,
   validateRecordId,
   validateCorrectionRequest,

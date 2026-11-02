@@ -1,6 +1,5 @@
 const mongoose = require('mongoose')
 
-const User = require('../models/User')
 const Course = require('../models/Course')
 const CourseOffering = require('../models/CourseOffering')
 const Enrollment = require('../models/Enrollment')
@@ -285,6 +284,166 @@ async function createAttendanceSession(user, input) {
   return getAttendanceSession(user, createdSessionId)
 }
 
+
+
+/**
+ * Saves the complete attendance roster for an open session.
+ * The transaction finalizes the session and writes every record atomically.
+ */
+async function bulkMarkAttendance(user, sessionId, input) {
+  requireFaculty(user)
+  requireValidId(sessionId, 'Attendance session ID is invalid.')
+
+  const attendanceSession = await AttendanceSession.findOne({
+    _id: sessionId,
+    facultyId: user._id,
+    status: 'open',
+  }).lean()
+
+  if (!attendanceSession) {
+    throw new ApiError(
+      404,
+      'Open attendance session not found for this faculty member.',
+      'OPEN_ATTENDANCE_SESSION_NOT_FOUND',
+    )
+  }
+
+  const offering = await CourseOffering.findOne({
+    _id: attendanceSession.courseOfferingId,
+    isActive: true,
+  }).lean()
+
+  if (!offering) {
+    throw new ApiError(
+      404,
+      'The course offering is no longer active.',
+      'COURSE_OFFERING_NOT_FOUND',
+    )
+  }
+
+  const facultyAssignment = await FacultyCourse.exists({
+    facultyId: user._id,
+    courseOfferingId: offering._id,
+    isActive: true,
+  })
+
+  if (!facultyAssignment) {
+    throw new ApiError(
+      403,
+      'You are no longer assigned to this course offering.',
+      'FACULTY_ASSIGNMENT_REQUIRED',
+    )
+  }
+
+  const enrollments = await Enrollment.find({
+    courseOfferingId: offering._id,
+    status: 'enrolled',
+  })
+    .select('_id studentId')
+    .lean()
+
+  if (!enrollments.length) {
+    throw new ApiError(
+      409,
+      'There are no actively enrolled students for this session.',
+      'NO_ENROLLED_STUDENTS',
+    )
+  }
+
+  const enrollmentByStudent = new Map(
+    enrollments.map((enrollment) => [
+      String(enrollment.studentId),
+      enrollment,
+    ]),
+  )
+
+  if (input.attendance.length !== enrollments.length) {
+    throw new ApiError(
+      400,
+      'Attendance must be provided for every actively enrolled student.',
+      'INCOMPLETE_ATTENDANCE',
+    )
+  }
+
+  const records = input.attendance.map((item) => {
+    const enrollment = enrollmentByStudent.get(String(item.studentId))
+
+    if (!enrollment) {
+      throw new ApiError(
+        403,
+        'An attendance entry belongs to a student who is not enrolled in this offering.',
+        'STUDENT_NOT_ENROLLED',
+      )
+    }
+
+    return {
+      sessionId: attendanceSession._id,
+      studentId: enrollment.studentId,
+      enrollmentId: enrollment._id,
+      status: item.status,
+      markedBy: user._id,
+      markedAt: new Date(),
+    }
+  })
+
+  const mongoSession = await mongoose.startSession()
+
+  try {
+    await mongoSession.withTransaction(async () => {
+      // Claim the open session first. A concurrent bulk request cannot
+      // finalize and overwrite the same session after this conditional update.
+      const finalizedSession = await AttendanceSession.findOneAndUpdate(
+        {
+          _id: attendanceSession._id,
+          facultyId: user._id,
+          status: 'open',
+        },
+        {
+          $set: {
+            status: 'finalized',
+            finalizedAt: new Date(),
+          },
+        },
+        {
+          new: true,
+          runValidators: true,
+          session: mongoSession,
+        },
+      )
+
+      if (!finalizedSession) {
+        throw new ApiError(
+          409,
+          'This attendance session has already been submitted.',
+          'ATTENDANCE_SESSION_ALREADY_FINALIZED',
+        )
+      }
+
+      await AttendanceRecord.bulkWrite(
+        records.map((record) => ({
+          updateOne: {
+            filter: {
+              sessionId: record.sessionId,
+              studentId: record.studentId,
+            },
+            update: {
+              $set: record,
+            },
+            upsert: true,
+          },
+        })),
+        {
+          ordered: true,
+          session: mongoSession,
+        },
+      )
+    })
+  } finally {
+    await mongoSession.endSession()
+  }
+
+  return getAttendanceSession(user, attendanceSession._id)
+}
 
 /**
  * Returns sessions visible to the authenticated user's role.
@@ -783,6 +942,7 @@ async function getFacultyAttendanceOptions(user) {
 
 module.exports = {
   createAttendanceSession,
+  bulkMarkAttendance,
   getAttendanceSessions,
   getAttendanceSession,
   getMyAttendance,

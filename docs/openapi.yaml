@@ -1,0 +1,1881 @@
+openapi: 3.1.0
+info:
+  title: CampusConnect API
+  version: 1.0.0
+  description: |
+    Route catalogue for the CampusConnect API. Exact request validation and
+    domain rules are implemented in server/src/validation and server/src/services.
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Local development
+  - url: https://{apiHost}/api/v1
+    description: Deployed API (replace apiHost with the configured API host)
+    variables:
+      apiHost:
+        default: campusconnect-api.example.com
+security:
+  - bearerAuth: []
+tags:
+  - name: Health
+  - name: Authentication
+  - name: Academic
+  - name: Attendance
+  - name: Assignments and files
+  - name: Announcements
+  - name: Campus life
+paths:
+  '/health':
+    get:
+      summary: Compatibility health response
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      security: []
+  '/health/live':
+    get:
+      summary: Liveness probe
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      security: []
+  '/health/ready':
+    get:
+      summary: Readiness probe
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      security: []
+  '/auth/login':
+    post:
+      summary: Authenticate credentials and set refresh cookie
+      security: []
+      description: Public login endpoint protected by trusted-origin and rate-limit middleware.
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      security:
+        - refreshCookie: []
+      description: Trusted-origin checks apply. Refresh/logout use the HttpOnly refresh cookie.
+  '/auth/refresh':
+    post:
+      summary: Rotate refresh session and return access token
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      security:
+        - refreshCookie: []
+      description: Trusted-origin checks apply. Refresh/logout use the HttpOnly refresh cookie.
+  '/auth/logout':
+    post:
+      summary: Revoke refresh session
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      security:
+        - refreshCookie: []
+      description: Trusted-origin checks apply. Refresh/logout use the HttpOnly refresh cookie.
+  '/auth/me':
+    get:
+      summary: Get current user
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/auth/register':
+    post:
+      summary: Provision user (administrator only)
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/auth/faculty':
+    get:
+      summary: List faculty accounts (administrator only)
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/dashboard/summary':
+    get:
+      summary: Get role-scoped dashboard summary
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/departments':
+    get:
+      summary: List departments
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+    post:
+      summary: Create department
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/courses':
+    get:
+      summary: List visible courses
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+    post:
+      summary: Create course
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/courses/my':
+    get:
+      summary: Get my courses
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/courses/{courseId}':
+    parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get course
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+    patch:
+      summary: Update course
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/courses/{courseId}/deactivate':
+    parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Deactivate course
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/course-offerings/options':
+    get:
+      summary: Get course offering options
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/course-offerings':
+    post:
+      summary: Create course offering
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/course-offerings/{offeringId}/faculty':
+    parameters:
+      - name: offeringId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      summary: Assign faculty to offering
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+    get:
+      summary: List assigned faculty
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/course-offerings/{offeringId}/faculty/{facultyId}':
+    parameters:
+      - name: offeringId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: facultyId
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      summary: Remove faculty assignment
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/enrollments/options':
+    get:
+      summary: Get enrollment options
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/enrollments/offerings/{offeringId}':
+    parameters:
+      - name: offeringId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: List offering enrollments
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/enrollments':
+    post:
+      summary: Create enrollment
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/enrollments/{enrollmentId}':
+    parameters:
+      - name: enrollmentId
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      summary: Remove enrollment
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/timetable':
+    get:
+      summary: List visible timetable entries
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+    post:
+      summary: Create timetable entry
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/timetable/{entryId}':
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get timetable entry
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+    patch:
+      summary: Update timetable entry
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/timetable/{entryId}/deactivate':
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Deactivate timetable entry
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/assignments':
+    get:
+      summary: List visible assignments
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+    post:
+      summary: Create assignment draft
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/assignments/{assignmentId}':
+    parameters:
+      - name: assignmentId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get assignment
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+    patch:
+      summary: Update assignment draft
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/assignments/{assignmentId}/publish':
+    parameters:
+      - name: assignmentId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Publish assignment
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/submissions/upload-url':
+    post:
+      summary: Create submission upload URL
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/submissions/complete':
+    post:
+      summary: Complete submission upload
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/submissions/my':
+    get:
+      summary: List my submissions
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/submissions/department':
+    get:
+      summary: List department submissions
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/submissions/institution':
+    get:
+      summary: List institution submissions
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/submissions/assignment/{assignmentId}':
+    parameters:
+      - name: assignmentId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: List submissions for assignment
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/submissions/{submissionId}/evaluate':
+    parameters:
+      - name: submissionId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Evaluate submission
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/submissions/{submissionId}/download-url':
+    parameters:
+      - name: submissionId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get authorized submission download URL
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/course-materials/upload-url':
+    post:
+      summary: Create course material upload URL
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/course-materials/complete':
+    post:
+      summary: Complete course material upload
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/course-materials/offering/{courseOfferingId}':
+    parameters:
+      - name: courseOfferingId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: List offering materials
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/course-materials/{materialId}/download-url':
+    parameters:
+      - name: materialId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get authorized material download URL
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/course-materials/{materialId}':
+    parameters:
+      - name: materialId
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      summary: Delete course material
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/attendance/options':
+    get:
+      summary: Get attendance options
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/attendance/my':
+    get:
+      summary: Get my attendance
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/attendance/overview':
+    get:
+      summary: Get attendance overview
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/attendance/sessions':
+    get:
+      summary: List attendance sessions
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+    post:
+      summary: Create attendance session
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/attendance/sessions/{sessionId}':
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get attendance session
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/attendance/correction-requests':
+    get:
+      summary: List attendance correction requests
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/attendance/records/{recordId}/correction-requests':
+    parameters:
+      - name: recordId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      summary: Request attendance correction
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/attendance/correction-requests/{requestId}/review':
+    parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Review attendance correction request
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/attendance/faculty/options':
+    get:
+      summary: Get faculty attendance options
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/attendance/faculty/offerings/{courseOfferingId}/roster':
+    parameters:
+      - name: courseOfferingId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get enrolled attendance roster
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/attendance/faculty/sessions':
+    post:
+      summary: Create faculty attendance session
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/attendance-sessions/{sessionId}/records':
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      summary: Bulk save attendance records
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/announcements/options':
+    get:
+      summary: Get announcement target options
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/announcements':
+    get:
+      summary: List visible announcements
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+    post:
+      summary: Publish announcement
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/announcements/{announcementId}/read':
+    parameters:
+      - name: announcementId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Mark announcement as read
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/clubs':
+    get:
+      summary: List clubs
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+    post:
+      summary: Create club
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/clubs/{clubIdentifier}':
+    parameters:
+      - name: clubIdentifier
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get club by slug
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/clubs/{clubIdentifier}':
+    parameters:
+      - name: clubIdentifier
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Update club
+      description: For this operation, clubIdentifier is the club MongoDB ObjectId.
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/clubs/{clubId}/deactivate':
+    parameters:
+      - name: clubId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Deactivate club
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/events':
+    get:
+      summary: List visible events
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+    post:
+      summary: Create event draft
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/events/{eventId}':
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get event
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+    patch:
+      summary: Update event draft
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/events/{eventId}/publish':
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Publish event
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/events/{eventId}/cancel':
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Cancel event
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/events/{eventId}/complete':
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Complete event
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/events/registrations/me':
+    get:
+      summary: List my event registrations
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/events/{eventId}/registrations':
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      summary: Register for event
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  '/events/{eventId}/registrations/me':
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      summary: Cancel my event registration
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/events/{eventId}/participants':
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: List event participants
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+  '/events/{eventId}/attendance':
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      summary: Bulk save event attendance
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid request or workflow input
+        '401':
+          description: Authentication required or invalid
+        '403':
+          description: Permission denied
+        '404':
+          description: Resource not found or outside caller scope
+        '500':
+          description: Unexpected server error
+      requestBody:
+        required: true
+        description: JSON request body; see API-REFERENCE.md and the corresponding validation module.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: campusconnect_refresh

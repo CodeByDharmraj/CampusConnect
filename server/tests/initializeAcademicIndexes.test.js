@@ -1,8 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 
-const initializeAcademicIndexes = require('../src/config/initializeAcademicIndexes')
-
 const models = [
   require('../src/models/Course'),
   require('../src/models/CourseOffering'),
@@ -11,11 +9,17 @@ const models = [
   require('../src/models/CourseOfferingReactivationRequest'),
   require('../src/models/TimetableEntry'),
   require('../src/models/Assignment'),
+  require('../src/models/Submission'),
   require('../src/models/Announcement'),
   require('../src/models/AnnouncementRead'),
+  require('../src/models/AttendanceSession'),
+  require('../src/models/AttendanceRecord'),
+  require('../src/models/AttendanceCorrectionRequest'),
 ]
 
-test('initializes all nine academic models', async () => {
+const initializeAcademicIndexes = require('../src/config/initializeAcademicIndexes')
+
+test('initializes all academic models', async () => {
   const expectedModels = [
     'Course',
     'CourseOffering',
@@ -24,8 +28,12 @@ test('initializes all nine academic models', async () => {
     'CourseOfferingReactivationRequest',
     'TimetableEntry',
     'Assignment',
+    'Submission',
     'Announcement',
     'AnnouncementRead',
+    'AttendanceSession',
+    'AttendanceRecord',
+    'AttendanceCorrectionRequest',
   ]
 
   const initializedModels = []

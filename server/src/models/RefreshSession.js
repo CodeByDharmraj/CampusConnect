@@ -8,6 +8,11 @@ const refreshSessionSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    familyId: {
+      type: String,
+      required: true,
+      index: true,
+    },
     tokenHash: {
       type: String,
       required: true,
@@ -35,5 +40,6 @@ const refreshSessionSchema = new mongoose.Schema(
 )
 
 refreshSessionSchema.index({ userId: 1, revokedAt: 1 })
+refreshSessionSchema.index({ familyId: 1, revokedAt: 1 })
 
 module.exports = mongoose.model('RefreshSession', refreshSessionSchema)
